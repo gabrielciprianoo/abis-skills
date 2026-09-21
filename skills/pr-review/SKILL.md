@@ -475,7 +475,7 @@ Path: `~/.claude/pr-review/sessions/<owner>__<repo>__<prNumber>.json` (use the a
 ```json
 {
   "version": 1,
-  "owner": "goldengate",
+  "owner": "abis",
   "repo": "web-app",
   "prNumber": 42,
   "headSha": "abc123",
