@@ -18,6 +18,8 @@ const SOURCE = `gabrielciprianoo/abis-skills#v${PKG.version}`;
 // command (no skill name, TTY) → npx arguments
 const DELEGATE = {
   install: ['-y', SKILLS_CLI, 'add', SOURCE, '-a', 'claude-code'],
+  update: ['-y', SKILLS_CLI, 'update'],
+  uninstall: ['-y', SKILLS_CLI, 'remove', '-a', 'claude-code'],
 };
 
 const USAGE = `Usage: abis-skills <command> [options]
@@ -167,6 +169,7 @@ async function cmdInstall(args) {
 }
 
 function cmdUpdate(args) {
+  if (!args.positional.length && process.stdin.isTTY) return delegate(DELEGATE.update);
   const skill = requireSkill(args);
   const info = installedInfo(skill);
   if (!info) {
@@ -184,6 +187,7 @@ function cmdUpdate(args) {
 }
 
 async function cmdUninstall(args) {
+  if (!args.positional.length && process.stdin.isTTY) return delegate(DELEGATE.uninstall);
   const [skill, ...extra] = args.positional;
   if (!skill) throw new Error('missing skill name. Usage: abis-skills uninstall <skill>');
   if (extra.length) throw new Error(`unexpected arguments: ${extra.join(' ')}`);
