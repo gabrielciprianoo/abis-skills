@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -11,8 +12,23 @@ const PKG = require(path.join(PKG_ROOT, 'package.json'));
 const SKILLS_SRC = path.join(PKG_ROOT, 'skills');
 const SKILLS_DEST = path.join(os.homedir(), '.claude', 'skills');
 const MARKER = '.installed.json';
+const SKILLS_CLI = 'skills@latest';
+const SOURCE = `gabrielciprianoo/abis-skills#v${PKG.version}`;
 
-const USAGE = `Usage: abis-skills <command> [options]
+// command (no skill name, TTY) → npx arguments
+const DELEGATE = {
+  install: ['-y', SKILLS_CLI, 'add', SOURCE, '-a', 'claude-code'],
+  update: ['-y', SKILLS_CLI, 'update'],
+  uninstall: ['-y', SKILLS_CLI, 'remove', '-a', 'claude-code'],
+};
+
+const USAGE = `Usage: abis-skills [command] [options]
+
+Interactive (terminal only, via npx ${SKILLS_CLI}, Claude Code):
+  abis-skills          Pick skills to install from an interactive selector
+  install              Same as above
+  update               Update skills installed with the selector
+  uninstall            Remove skills installed with the selector
 
 Commands:
   list                 List available skills and their install status
@@ -21,7 +37,7 @@ Commands:
   uninstall <skill>    Remove an installed skill
 
 Options:
-  -f, --force          Overwrite or remove without asking for confirmation
+  -f, --force          Overwrite or remove without asking (requires <skill>)
   -h, --help           Show this help
   -v, --version        Show version`;
 
@@ -79,6 +95,39 @@ function requireSkill(args) {
   return skill;
 }
 
+function delegate(npxArgs) {
+  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  return new Promise((resolve) => {
+    let child;
+    try {
+      // Node >= 18.20 refuses to spawn .cmd files without a shell on Windows.
+      child = spawn(npx, npxArgs, { stdio: 'inherit', shell: process.platform === 'win32' });
+    } catch (err) {
+      resolve(delegateFailed(err));
+      return;
+    }
+    // Let the child handle Ctrl+C; its exit code is ours.
+    const ignore = () => {};
+    process.on('SIGINT', ignore);
+    child.on('error', (err) => {
+      process.off('SIGINT', ignore);
+      resolve(delegateFailed(err));
+    });
+    child.on('exit', (code) => {
+      process.off('SIGINT', ignore);
+      resolve(code ?? 1);
+    });
+  });
+}
+
+function delegateFailed(err) {
+  console.error(
+    `Error: could not run "npx ${SKILLS_CLI}" (${err.code || err.message}).\n` +
+      `Install a skill without the interactive selector: abis-skills install <skill>`
+  );
+  return 1;
+}
+
 function isManaged(info) {
   return Boolean(info && info.package === PKG.name);
 }
@@ -110,6 +159,7 @@ function copySkill(skill) {
 }
 
 async function cmdInstall(args) {
+  if (!args.positional.length && process.stdin.isTTY) return delegate(DELEGATE.install);
   const skill = requireSkill(args);
   if (installedInfo(skill) && !args.force) {
     const ok = await confirm(`"${skill}" is already installed at ${path.join(SKILLS_DEST, skill)}. Overwrite?`);
@@ -125,6 +175,7 @@ async function cmdInstall(args) {
 }
 
 function cmdUpdate(args) {
+  if (!args.positional.length && process.stdin.isTTY) return delegate(DELEGATE.update);
   const skill = requireSkill(args);
   const info = installedInfo(skill);
   if (!info) {
@@ -142,6 +193,7 @@ function cmdUpdate(args) {
 }
 
 async function cmdUninstall(args) {
+  if (!args.positional.length && process.stdin.isTTY) return delegate(DELEGATE.uninstall);
   const [skill, ...extra] = args.positional;
   if (!skill) throw new Error('missing skill name. Usage: abis-skills uninstall <skill>');
   if (extra.length) throw new Error(`unexpected arguments: ${extra.join(' ')}`);
@@ -201,9 +253,19 @@ async function main() {
     console.log(PKG.version);
     return 0;
   }
-  if (args.help || !args.command) {
+  if (args.help) {
     console.log(USAGE);
-    return args.command || args.help ? 0 : 1;
+    return 0;
+  }
+  // --force only applies to the named forms; never pass it on to a delegated command.
+  if (args.force && !args.positional.length && (!args.command || args.command in DELEGATE)) {
+    console.error('Error: --force requires a skill name');
+    return 1;
+  }
+  if (!args.command) {
+    if (process.stdin.isTTY) return delegate(DELEGATE.install);
+    console.log(USAGE);
+    return 1;
   }
 
   const handler = COMMANDS[args.command];

@@ -1,11 +1,12 @@
 # abis-skills
 
-Collection of [Claude Code](https://claude.com/claude-code) skills, installable globally into `~/.claude/skills/` with a single `npx` command.
+Collection of [Claude Code](https://claude.com/claude-code) skills, installable with a single `npx` command.
 
 ## Requirements
 
 - **Node.js 18+** (only to run the installer; skills themselves need no Node).
 - **Claude Code**.
+- **`git`** and network access, for the interactive install.
 - **GitHub CLI (`gh`)**, authenticated, for `pr-review`:
 
   ```sh
@@ -16,14 +17,50 @@ Collection of [Claude Code](https://claude.com/claude-code) skills, installable 
 ## Install
 
 ```sh
+npx abis-skills
+```
+
+This opens an interactive selector: search the list, pick the skills you want (or "Select All") and choose where to install them:
+
+- **Global**: available in every project.
+- **Project**: only in the current directory.
+
+Restart Claude Code and run the skill, e.g. `/pr-review`.
+
+The selector is [Vercel's `skills` CLI](https://github.com/vercel-labs/skills) (`npx skills@latest`), run for you by `abis-skills`:
+
+- It installs for **Claude Code only**; it never asks which agent.
+- It installs the skills from the git tag matching this package's version (`npx abis-skills@0.2.0` → tag `v0.2.0`).
+- Skills are **symlinked** into Claude Code's skills directory from a copy managed by `skills`. If that copy is removed, run `npx abis-skills` again.
+- If a skill is already installed, `skills` overwrites it.
+- It only runs in an interactive terminal. When `skills` detects it is launched by an agent (e.g. with `!` inside Claude Code), it installs without showing the selector; run `npx abis-skills` from a regular terminal instead.
+
+Skills installed with the selector are managed without a skill name:
+
+```sh
+npx abis-skills update      # runs: npx skills@latest update
+npx abis-skills uninstall   # runs: npx skills@latest remove -a claude-code
+```
+
+`skills update` is owned by `skills` and may update beyond this package's pinned tag.
+
+The named commands below (`update <skill>`, `uninstall <skill>`) do not touch selector-installed skills.
+
+### Non-interactive install (CI, scripts)
+
+```sh
 npx abis-skills install pr-review
 ```
 
-This copies the skill to `~/.claude/skills/pr-review/`. Restart Claude Code and run `/pr-review` in any repository.
+This copies the skill to `~/.claude/skills/pr-review/` without `git`, network access or the `skills` CLI. Use it when there is no interactive terminal, or as a fallback if the selector fails.
 
 ## Commands
 
 ```sh
+npx abis-skills                     # interactive selector (terminal only)
+npx abis-skills install             # same as above
+npx abis-skills update              # update selector-installed skills
+npx abis-skills uninstall           # remove selector-installed skills
 npx abis-skills list                # available skills and install status
 npx abis-skills install <skill>     # install (asks before overwriting)
 npx abis-skills update <skill>      # overwrite with this package's version
@@ -32,11 +69,15 @@ npx abis-skills uninstall <skill>   # remove (asks for confirmation)
 
 | Option | Effect |
 | --- | --- |
-| `-f`, `--force` | Overwrite (`install`) or remove (`uninstall`) without asking |
+| `-f`, `--force` | Overwrite (`install <skill>`) or remove (`uninstall <skill>`) without asking. Requires a skill name. |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show package version |
 
 Notes:
+
+- Without an interactive terminal, the forms without a skill name never run the selector: `npx abis-skills` prints the help and `install` / `update` / `uninstall` fail with `missing skill name` (exit code 1).
+
+For the named commands (`install <skill>`, `update <skill>`, `uninstall <skill>`):
 
 - Each installed skill gets a `.installed.json` with the package name, version and install date.
 - `update` and `uninstall` only touch skills installed by this package. A skill you created yourself with the same name is never overwritten or deleted unless you run `install <skill> --force`.
@@ -83,7 +124,8 @@ Details:
 ## Uninstall
 
 ```sh
-npx abis-skills uninstall pr-review
+npx abis-skills uninstall             # installed with the selector
+npx abis-skills uninstall pr-review   # installed with `install pr-review`
 rm -rf ~/.claude/pr-review   # optional: pending review sessions
 ```
 
