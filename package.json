@@ -1,6 +1,6 @@
 {
   "name": "abis-skills",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Claude Code skills installable globally with npx. Includes /pr-review: guided, human-approved GitHub PR reviews.",
   "author": "gabrielciprianoo (https://github.com/gabrielciprianoo)",
   "repository": {
@@ -16,7 +16,8 @@
   },
   "files": [
     "bin",
-    "skills"
+    "skills",
+    "SECURITY.md"
   ],
   "engines": {
     "node": ">=18"

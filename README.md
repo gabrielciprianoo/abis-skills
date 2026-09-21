@@ -30,7 +30,7 @@ Restart Claude Code and run the skill, e.g. `/pr-review`.
 The selector is [Vercel's `skills` CLI](https://github.com/vercel-labs/skills) (`npx skills@latest`), run for you by `abis-skills`:
 
 - It installs for **Claude Code only**; it never asks which agent.
-- It installs the skills from the git tag matching this package's version (`npx abis-skills@0.2.0` → tag `v0.2.0`).
+- It installs the skills from the git tag matching this package's version (`npx abis-skills@0.2.1` → tag `v0.2.1`).
 - Skills are **symlinked** into Claude Code's skills directory from a copy managed by `skills`. If that copy is removed, run `npx abis-skills` again.
 - If a skill is already installed, `skills` overwrites it.
 - It only runs in an interactive terminal. When `skills` detects it is launched by an agent (e.g. with `!` inside Claude Code), it installs without showing the selector; run `npx abis-skills` from a regular terminal instead.
@@ -120,6 +120,22 @@ Details:
 - Progress is saved after every decision in `~/.claude/pr-review/sessions/<owner>__<repo>__<pr>.json`. Relaunching `/pr-review` offers to continue. The file is deleted after a successful publish.
 - It never modifies code, switches branches or checks out the PR.
 - On your own PR, only `COMMENT` is available (GitHub rule).
+
+## Security
+
+> [!WARNING]
+> When installing, the `skills` selector shows **High** (Gen Agent Trust Hub) and **Medium** (Snyk) risk for `pr-review`. This is expected: the skill runs `gh` commands and reads pull requests written by other people, with your GitHub login. There is no malicious code (Socket: 0 alerts), but a malicious PR could try to trick the agent (odd file names, hidden instructions for AI reviewers).
+
+Since v0.2.1 the skill validates every value before it reaches a command, treats PR content as data (never as instructions), reports manipulation attempts as findings, and posts nothing until you confirm the final preview.
+
+Be careful:
+
+- Install only `abis-skills` from npm or `gabrielciprianoo/abis-skills` from GitHub; check the name before `npx`.
+- Read the preview before **Publish review**: event and every comment.
+- Take extra care with PRs from unknown contributors or forks. Stop Claude if it proposes anything that is not part of the review.
+- Keep Claude Code's permission prompts on, and use a `gh` token with the minimum scopes.
+
+Details, audit results and how to report a vulnerability: [SECURITY.md](https://github.com/gabrielciprianoo/abis-skills/blob/main/SECURITY.md).
 
 ## Uninstall
 
