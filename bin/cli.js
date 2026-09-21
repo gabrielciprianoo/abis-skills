@@ -243,9 +243,14 @@ async function main() {
     console.log(PKG.version);
     return 0;
   }
-  if (args.help || !args.command) {
+  if (args.help) {
     console.log(USAGE);
-    return args.command || args.help ? 0 : 1;
+    return 0;
+  }
+  if (!args.command) {
+    if (process.stdin.isTTY) return delegate(DELEGATE.install);
+    console.log(USAGE);
+    return 1;
   }
 
   const handler = COMMANDS[args.command];
