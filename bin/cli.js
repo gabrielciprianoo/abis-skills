@@ -251,6 +251,11 @@ async function main() {
     console.log(USAGE);
     return 0;
   }
+  // --force only applies to the named forms; never pass it on to a delegated command.
+  if (args.force && !args.positional.length && (!args.command || args.command in DELEGATE)) {
+    console.error('Error: --force requires a skill name');
+    return 1;
+  }
   if (!args.command) {
     if (process.stdin.isTTY) return delegate(DELEGATE.install);
     console.log(USAGE);
