@@ -1,6 +1,6 @@
 # SPEC 02 — Interactive skill selection via the `skills` CLI
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 01
 > **Date:** 2026-09-21
 > **Objective:** Make `npx abis-skills` (with no skill name) open the interactive `skills` selector (banner, search, Select All) so the user picks which skills to install for Claude Code, by delegating to `npx skills@latest add`.
