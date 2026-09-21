@@ -83,11 +83,27 @@ function isManaged(info) {
   return Boolean(info && info.package === PKG.name);
 }
 
+function findSymlinks(dir) {
+  const found = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) found.push(full);
+    else if (entry.isDirectory()) found.push(...findSymlinks(full));
+  }
+  return found;
+}
+
 function copySkill(skill) {
+  const src = path.join(SKILLS_SRC, skill);
+  const links = findSymlinks(src);
+  if (links.length) {
+    const list = links.map((link) => `  ${path.relative(SKILLS_SRC, link)}`).join('\n');
+    throw new Error(`refusing to install "${skill}": it contains symbolic links.\n${list}`);
+  }
   const dest = path.join(SKILLS_DEST, skill);
   fs.rmSync(dest, { recursive: true, force: true });
   fs.mkdirSync(SKILLS_DEST, { recursive: true });
-  fs.cpSync(path.join(SKILLS_SRC, skill), dest, { recursive: true });
+  fs.cpSync(src, dest, { recursive: true });
   const marker = { package: PKG.name, version: PKG.version, installedAt: new Date().toISOString() };
   fs.writeFileSync(path.join(dest, MARKER), JSON.stringify(marker, null, 2) + '\n');
   return dest;

@@ -42,6 +42,7 @@ Notes:
 - `update` and `uninstall` only touch skills installed by this package. A skill you created yourself with the same name is never overwritten or deleted unless you run `install <skill> --force`.
 - To get the latest version of a skill: `npx @goldengate/skills@latest update <skill>`.
 - Without an interactive terminal (e.g. CI), confirmation prompts count as "no"; use `--force`.
+- For safety, `install` and `update` refuse any skill that contains symbolic links, so nothing outside the skill folder can end up in `~/.claude/skills/`.
 
 ## Skills
 
