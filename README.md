@@ -1,4 +1,4 @@
-# @abis/skills
+# abis-skills
 
 Collection of [Claude Code](https://claude.com/claude-code) skills, installable globally into `~/.claude/skills/` with a single `npx` command.
 
@@ -16,7 +16,7 @@ Collection of [Claude Code](https://claude.com/claude-code) skills, installable 
 ## Install
 
 ```sh
-npx @abis/skills install pr-review
+npx abis-skills install pr-review
 ```
 
 This copies the skill to `~/.claude/skills/pr-review/`. Restart Claude Code and run `/pr-review` in any repository.
@@ -24,10 +24,10 @@ This copies the skill to `~/.claude/skills/pr-review/`. Restart Claude Code and 
 ## Commands
 
 ```sh
-npx @abis/skills list                # available skills and install status
-npx @abis/skills install <skill>     # install (asks before overwriting)
-npx @abis/skills update <skill>      # overwrite with this package's version
-npx @abis/skills uninstall <skill>   # remove (asks for confirmation)
+npx abis-skills list                # available skills and install status
+npx abis-skills install <skill>     # install (asks before overwriting)
+npx abis-skills update <skill>      # overwrite with this package's version
+npx abis-skills uninstall <skill>   # remove (asks for confirmation)
 ```
 
 | Option | Effect |
@@ -40,7 +40,7 @@ Notes:
 
 - Each installed skill gets a `.installed.json` with the package name, version and install date.
 - `update` and `uninstall` only touch skills installed by this package. A skill you created yourself with the same name is never overwritten or deleted unless you run `install <skill> --force`.
-- To get the latest version of a skill: `npx @abis/skills@latest update <skill>`.
+- To get the latest version of a skill: `npx abis-skills@latest update <skill>`.
 - Without an interactive terminal (e.g. CI), confirmation prompts count as "no"; use `--force`.
 - For safety, `install` and `update` refuse any skill that contains symbolic links, so nothing outside the skill folder can end up in `~/.claude/skills/`.
 
@@ -83,7 +83,7 @@ Details:
 ## Uninstall
 
 ```sh
-npx @abis/skills uninstall pr-review
+npx abis-skills uninstall pr-review
 rm -rf ~/.claude/pr-review   # optional: pending review sessions
 ```
 
