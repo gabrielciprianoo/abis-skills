@@ -12,7 +12,7 @@ const SKILLS_SRC = path.join(PKG_ROOT, 'skills');
 const SKILLS_DEST = path.join(os.homedir(), '.claude', 'skills');
 const MARKER = '.installed.json';
 
-const USAGE = `Usage: goldengate-skills <command> [options]
+const USAGE = `Usage: abis-skills <command> [options]
 
 Commands:
   list                 List available skills and their install status
@@ -70,7 +70,7 @@ function confirm(question) {
 
 function requireSkill(args) {
   const [skill, ...extra] = args.positional;
-  if (!skill) throw new Error(`missing skill name. Usage: goldengate-skills ${args.command} <skill>`);
+  if (!skill) throw new Error(`missing skill name. Usage: abis-skills ${args.command} <skill>`);
   if (extra.length) throw new Error(`unexpected arguments: ${extra.join(' ')}`);
   if (!availableSkills().includes(skill)) {
     const list = availableSkills().join(', ') || '(none)';
@@ -128,12 +128,12 @@ function cmdUpdate(args) {
   const skill = requireSkill(args);
   const info = installedInfo(skill);
   if (!info) {
-    throw new Error(`"${skill}" is not installed. Run: goldengate-skills install ${skill}`);
+    throw new Error(`"${skill}" is not installed. Run: abis-skills install ${skill}`);
   }
   if (!isManaged(info)) {
     throw new Error(
       `${path.join(SKILLS_DEST, skill)} was not installed by ${PKG.name}. ` +
-        `Run "goldengate-skills install ${skill} --force" to replace it.`
+        `Run "abis-skills install ${skill} --force" to replace it.`
     );
   }
   const dest = copySkill(skill);
@@ -143,7 +143,7 @@ function cmdUpdate(args) {
 
 async function cmdUninstall(args) {
   const [skill, ...extra] = args.positional;
-  if (!skill) throw new Error('missing skill name. Usage: goldengate-skills uninstall <skill>');
+  if (!skill) throw new Error('missing skill name. Usage: abis-skills uninstall <skill>');
   if (extra.length) throw new Error(`unexpected arguments: ${extra.join(' ')}`);
   if (!/^[a-z0-9][a-z0-9._-]*$/i.test(skill)) throw new Error(`invalid skill name: "${skill}"`);
 
