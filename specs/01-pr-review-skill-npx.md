@@ -3,7 +3,7 @@
 > **Status:** Implemented
 > **Depends on:** —
 > **Date:** 2026-09-21
-> **Objective:** Build the `/pr-review` skill, which reviews a GitHub PR step by step with user approval on every finding and posts inline comments with no trace of AI, distributed via `npx @abis/skills install pr-review`.
+> **Objective:** Build the `/pr-review` skill, which reviews a GitHub PR step by step with user approval on every finding and posts inline comments with no trace of AI, distributed via `npx abis-skills install pr-review`.
 
 ---
 
@@ -20,7 +20,7 @@ Copying the skill file into every project does not scale, so it ships as an npm 
 
 **In:**
 
-- Public npm package `@abis/skills` with a CLI (`install`, `list`, `update`, `uninstall`).
+- Public npm package `abis-skills` with a CLI (`install`, `list`, `update`, `uninstall`).
 - The CLI installs skills into `~/.claude/skills/<skill>/` (Claude Code only).
 - The package is a collection: today it contains only `pr-review`, but it accepts more skills without changing the CLI.
 - `/pr-review` skill that reviews **other people's** GitHub PRs and posts comments. It does not modify code.
@@ -54,7 +54,7 @@ Copying the skill file into every project does not scale, so it ships as an npm 
 ### Package layout
 
 ```
-package.json            # name: @abis/skills, bin: { "abis-skills": "bin/cli.js" }
+package.json            # name: abis-skills, bin: { "abis-skills": "bin/cli.js" }
 bin/cli.js              # dependency-free CLI (Node >= 18)
 skills/
   pr-review/
@@ -67,7 +67,7 @@ On install, the CLI copies `skills/<skill>/` to `~/.claude/skills/<skill>/` and 
 
 ```json
 // ~/.claude/skills/<skill>/.installed.json
-{ "package": "@abis/skills", "version": "0.1.0", "installedAt": "2026-09-21T12:00:00Z" }
+{ "package": "abis-skills", "version": "0.1.0", "installedAt": "2026-09-21T12:00:00Z" }
 ```
 
 ### Review session (for resuming)
@@ -154,7 +154,7 @@ Cross-cutting rule: **every user decision is an `AskUserQuestion`** with clear o
 
 ## Implementation plan
 
-1. Create `package.json` (`@abis/skills`, `version: 0.1.0`, `bin`, `files: ["bin", "skills"]`, `engines.node >= 18`), `.gitignore` and a minimal `README.md`. Verifiable: `npm pack --dry-run` lists the files.
+1. Create `package.json` (`abis-skills`, `version: 0.1.0`, `bin`, `files: ["bin", "skills"]`, `engines.node >= 18`), `.gitignore` and a minimal `README.md`. Verifiable: `npm pack --dry-run` lists the files.
 2. Create `bin/cli.js` with argument parsing and `list` (reads the package's `skills/` and flags those installed in `~/.claude/skills/`). Verifiable: `node bin/cli.js list`.
 3. Add `install <skill>`: recursive copy, write `.installed.json`; if it already exists ask `[y/N]` unless `--force`. Clear error if the skill does not exist.
 4. Add `update <skill>` (overwrites without asking) and `uninstall <skill>` (asks `[y/N]` unless `--force`).
@@ -163,14 +163,14 @@ Cross-cutting rule: **every user decision is an `AskUserQuestion`** with clear o
 7. Add step 9 (one-by-one walkthrough, solutions with multiple comments, collaborative editing, JSON saving).
 8. Add steps 10–13 (event, anti-AI check, publishing with `gh api`, out-of-diff fallback, JSON cleanup).
 9. Complete `README.md` (npx installation, commands, requirements: Node 18+, authenticated `gh`).
-10. Publish: `npm publish --access public` under the `@abis` scope.
+10. Publish: `npm publish --access public` as the unscoped package `abis-skills`.
 
 ---
 
 ## Acceptance criteria
 
-- [x] `npx @abis/skills list` shows `pr-review` as available.
-- [x] `npx @abis/skills install pr-review` creates `~/.claude/skills/pr-review/SKILL.md` and `.installed.json`.
+- [x] `npx abis-skills list` shows `pr-review` as available.
+- [x] `npx abis-skills install pr-review` creates `~/.claude/skills/pr-review/SKILL.md` and `.installed.json`.
 - [x] Reinstalling without `--force` asks for confirmation; with `--force` it overwrites without asking.
 - [x] `update pr-review` overwrites with the package version.
 - [x] `uninstall pr-review` removes `~/.claude/skills/pr-review/` after confirming.
@@ -208,7 +208,7 @@ Decisions taken during implementation (branch `spec-01-pr-review-skill-npx`):
 - **Anti-AI check:** an `AI`/`IA` mention that is the subject matter of the PR is removed only after asking the user; everything else is removed automatically, and a `grep` on the final payload blocks publishing.
 - **Step 13:** when GitHub rejects out-of-diff comments (422), the skill offers to move them to the body and retry, going through preview and confirmation again.
 - **Release order:** merge to `main`, tag `v0.1.0` and GitHub release, then `npm publish` from `main` (step 10 runs last). Added `repository`/`homepage`/`bugs`/`author` to `package.json`, plus `LICENSE` (MIT) and `CHANGELOG.md`.
-- **Rename before the first npm publish:** package `@goldengate/skills` → `@abis/skills`, CLI `goldengate-skills` → `abis-skills`, GitHub repo `gg-skills` → `abis-skills`. The first `v0.1.0` tag and GitHub release were deleted and recreated on the renamed code; nothing had been published to npm.
+- **Rename before the first npm publish:** package `@goldengate/skills` → `abis-skills` (unscoped: the `@goldengate` and `@abis` npm scopes belong to other accounts), CLI `goldengate-skills` → `abis-skills`, GitHub repo `gg-skills` → `abis-skills`. The first `v0.1.0` tag and GitHub release were deleted and recreated on the renamed code; nothing had been published to npm.
 - **Next spec candidates:** distribution through skills.sh / `npx skills add`, other agents, `npm publish --provenance` from GitHub Actions.
 
 Verification: CLI criteria checked with `npx --package=<tarball> abis-skills` and a throwaway `HOME`. `/pr-review` criteria require a manual run in Claude Code.
@@ -230,7 +230,7 @@ Verification: CLI criteria checked with `npx --package=<tarball> abis-skills` an
 - **Yes:** multi-line inline + fallback to body when the range is not inside a diff hunk. GitHub rejects inline comments outside the diff.
 - **Yes:** user-chosen event, with a severity-based recommendation.
 - **Yes:** zero trace of AI, with an explicit check before publishing.
-- **Yes:** public npm with the `@abis/skills` scope. Semver versioning, npx with no config.
+- **Yes:** public npm as the unscoped package `abis-skills` (same name as the CLI). Semver versioning, npx with no config.
 - **No:** `npx github:...`. No clean versioning.
 - **Yes:** collection package with a generic CLI. Future skills need no new package.
 - **Yes:** Claude Code as the only target. Other agents go in future specs.
@@ -245,7 +245,7 @@ Verification: CLI criteria checked with `npx --package=<tarball> abis-skills` an
 
 | Risk | Mitigation |
 | --- | --- |
-| `@abis` scope does not exist or is unavailable on npm | Create the npm org before step 10; fallback: another scope chosen by the team. |
+| Package name unavailable on npm | Check the name and publish permission (`npm view`, `npm access`) before step 10; fallback: another name chosen by the team. |
 | `AskUserQuestion` limits questions to 4 options | Paginate PRs 3 at a time + "See more"; split criteria across 2 questions. |
 | PR gets new commits between sessions | Compare `headSha` on resume; recommend starting over. |
 | Comment lines no longer exist in the diff | Validate against the diff before publishing; move to body. |
