@@ -17,9 +17,11 @@ const USAGE = `Usage: goldengate-skills <command> [options]
 Commands:
   list                 List available skills and their install status
   install <skill>      Install a skill into ~/.claude/skills/<skill>/
+  update <skill>       Overwrite an installed skill with this package's version
+  uninstall <skill>    Remove an installed skill
 
 Options:
-  -f, --force          Overwrite without asking for confirmation
+  -f, --force          Overwrite or remove without asking for confirmation
   -h, --help           Show this help
   -v, --version        Show version`;
 
@@ -77,6 +79,10 @@ function requireSkill(args) {
   return skill;
 }
 
+function isManaged(info) {
+  return Boolean(info && info.package === PKG.name);
+}
+
 function copySkill(skill) {
   const dest = path.join(SKILLS_DEST, skill);
   fs.rmSync(dest, { recursive: true, force: true });
@@ -102,6 +108,47 @@ async function cmdInstall(args) {
   return 0;
 }
 
+function cmdUpdate(args) {
+  const skill = requireSkill(args);
+  const info = installedInfo(skill);
+  if (!info) {
+    throw new Error(`"${skill}" is not installed. Run: goldengate-skills install ${skill}`);
+  }
+  if (!isManaged(info)) {
+    throw new Error(
+      `${path.join(SKILLS_DEST, skill)} was not installed by ${PKG.name}. ` +
+        `Run "goldengate-skills install ${skill} --force" to replace it.`
+    );
+  }
+  const dest = copySkill(skill);
+  console.log(`✓ Updated ${skill} v${info.version} → v${PKG.version} at ${dest}`);
+  return 0;
+}
+
+async function cmdUninstall(args) {
+  const [skill, ...extra] = args.positional;
+  if (!skill) throw new Error('missing skill name. Usage: goldengate-skills uninstall <skill>');
+  if (extra.length) throw new Error(`unexpected arguments: ${extra.join(' ')}`);
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(skill)) throw new Error(`invalid skill name: "${skill}"`);
+
+  const dest = path.join(SKILLS_DEST, skill);
+  const info = installedInfo(skill);
+  if (!info) throw new Error(`"${skill}" is not installed at ${dest}`);
+  if (!isManaged(info)) {
+    throw new Error(`${dest} was not installed by ${PKG.name}. Refusing to remove it.`);
+  }
+  if (!args.force) {
+    const ok = await confirm(`Remove ${dest}?`);
+    if (!ok) {
+      console.log('Aborted. Nothing was changed.');
+      return 1;
+    }
+  }
+  fs.rmSync(dest, { recursive: true, force: true });
+  console.log(`✓ Uninstalled ${skill} from ${dest}`);
+  return 0;
+}
+
 function cmdList() {
   const skills = availableSkills();
   if (skills.length === 0) {
@@ -121,6 +168,8 @@ function cmdList() {
 const COMMANDS = {
   list: cmdList,
   install: cmdInstall,
+  update: cmdUpdate,
+  uninstall: cmdUninstall,
 };
 
 async function main() {
