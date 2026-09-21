@@ -1,6 +1,6 @@
 # SPEC 01 — `/pr-review` skill installable globally via npx
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Depends on:** —
 > **Date:** 2026-09-21
 > **Objective:** Build the `/pr-review` skill, which reviews a GitHub PR step by step with user approval on every finding and posts inline comments with no trace of AI, distributed via `npx @goldengate/skills install pr-review`.
@@ -169,13 +169,13 @@ Cross-cutting rule: **every user decision is an `AskUserQuestion`** with clear o
 
 ## Acceptance criteria
 
-- [ ] `npx @goldengate/skills list` shows `pr-review` as available.
-- [ ] `npx @goldengate/skills install pr-review` creates `~/.claude/skills/pr-review/SKILL.md` and `.installed.json`.
-- [ ] Reinstalling without `--force` asks for confirmation; with `--force` it overwrites without asking.
-- [ ] `update pr-review` overwrites with the package version.
-- [ ] `uninstall pr-review` removes `~/.claude/skills/pr-review/` after confirming.
-- [ ] `install nonexistent` exits with a non-zero code and a clear message.
-- [ ] The package has no entries in `dependencies`.
+- [x] `npx @goldengate/skills list` shows `pr-review` as available.
+- [x] `npx @goldengate/skills install pr-review` creates `~/.claude/skills/pr-review/SKILL.md` and `.installed.json`.
+- [x] Reinstalling without `--force` asks for confirmation; with `--force` it overwrites without asking.
+- [x] `update pr-review` overwrites with the package version.
+- [x] `uninstall pr-review` removes `~/.claude/skills/pr-review/` after confirming.
+- [x] `install nonexistent` exits with a non-zero code and a clear message.
+- [x] The package has no entries in `dependencies`.
 - [ ] `/pr-review` without authenticated `gh` points to `gh auth login` and does not continue.
 - [ ] With authenticated `gh` it shows `Connected to GitHub as @<user>`.
 - [ ] Every user decision is presented as an option selection; none is an open question.
@@ -192,6 +192,25 @@ Cross-cutting rule: **every user decision is an `AskUserQuestion`** with clear o
 - [ ] Interrupting mid-session and relaunching `/pr-review` offers to continue from the pending finding.
 - [ ] After a successful publish, the session JSON is deleted.
 - [ ] On the user's own PR only the `COMMENT` event is offered.
+
+---
+
+## Implementation notes
+
+Decisions taken during implementation (branch `spec-01-pr-review-skill-npx`):
+
+- **CLI safety:** `update` and `uninstall` only touch skills whose `.installed.json` says they were installed by this package; `uninstall` validates the skill name (no path traversal). `install`/`update` refuse skills that contain symbolic links (added after review, at the user's request).
+- **CLI prompts:** without an interactive terminal, `[y/N]` prompts count as "no"; aborting exits with code 1. Overwriting deletes the old folder first (no stale files).
+- **Comment bodies** are drafted in step 9, after the comment language is chosen (step 8); the analysis in step 6 only stores comment locations.
+- **Criteria question 2** lists `Bugs/logic` and `Security` first, as recommended options.
+- **Step 9:** `Edit a comment` is the recommended option and goes first; `Post as is` is last.
+- **Comments on removed lines** are supported (`side: LEFT`).
+- **Anti-AI check:** an `AI`/`IA` mention that is the subject matter of the PR is removed only after asking the user; everything else is removed automatically, and a `grep` on the final payload blocks publishing.
+- **Step 13:** when GitHub rejects out-of-diff comments (422), the skill offers to move them to the body and retry, going through preview and confirmation again.
+- **Release order:** merge to `main`, tag `v0.1.0` and GitHub release, then `npm publish` from `main` (step 10 runs last). Added `repository`/`homepage`/`bugs`/`author` to `package.json`, plus `LICENSE` (MIT) and `CHANGELOG.md`.
+- **Next spec candidates:** distribution through skills.sh / `npx skills add`, other agents, `npm publish --provenance` from GitHub Actions.
+
+Verification: CLI criteria checked with `npx --package=<tarball> goldengate-skills` and a throwaway `HOME`. `/pr-review` criteria require a manual run in Claude Code.
 
 ---
 

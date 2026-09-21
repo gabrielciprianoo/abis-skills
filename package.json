@@ -1,0 +1,35 @@
+{
+  "name": "@goldengate/skills",
+  "version": "0.1.0",
+  "description": "Claude Code skills installable globally with npx. Includes /pr-review: guided, human-approved GitHub PR reviews.",
+  "author": "gabrielciprianoo (https://github.com/gabrielciprianoo)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabrielciprianoo/gg-skills.git"
+  },
+  "homepage": "https://github.com/gabrielciprianoo/gg-skills#readme",
+  "bugs": {
+    "url": "https://github.com/gabrielciprianoo/gg-skills/issues"
+  },
+  "bin": {
+    "goldengate-skills": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "skills"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "agent-skills",
+    "code-review",
+    "pull-request",
+    "github",
+    "cli"
+  ],
+  "license": "MIT"
+}
