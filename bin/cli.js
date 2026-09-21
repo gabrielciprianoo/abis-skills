@@ -4,6 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const readline = require('readline');
 
 const PKG_ROOT = path.resolve(__dirname, '..');
 const PKG = require(path.join(PKG_ROOT, 'package.json'));
@@ -15,8 +16,10 @@ const USAGE = `Usage: goldengate-skills <command> [options]
 
 Commands:
   list                 List available skills and their install status
+  install <skill>      Install a skill into ~/.claude/skills/<skill>/
 
 Options:
+  -f, --force          Overwrite without asking for confirmation
   -h, --help           Show this help
   -v, --version        Show version`;
 
@@ -52,6 +55,53 @@ function installedInfo(skill) {
   }
 }
 
+function confirm(question) {
+  if (!process.stdin.isTTY) return Promise.resolve(false);
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(`${question} [y/N] `, (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test(answer.trim()));
+    });
+  });
+}
+
+function requireSkill(args) {
+  const [skill, ...extra] = args.positional;
+  if (!skill) throw new Error(`missing skill name. Usage: goldengate-skills ${args.command} <skill>`);
+  if (extra.length) throw new Error(`unexpected arguments: ${extra.join(' ')}`);
+  if (!availableSkills().includes(skill)) {
+    const list = availableSkills().join(', ') || '(none)';
+    throw new Error(`skill "${skill}" does not exist in ${PKG.name}. Available: ${list}`);
+  }
+  return skill;
+}
+
+function copySkill(skill) {
+  const dest = path.join(SKILLS_DEST, skill);
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(SKILLS_DEST, { recursive: true });
+  fs.cpSync(path.join(SKILLS_SRC, skill), dest, { recursive: true });
+  const marker = { package: PKG.name, version: PKG.version, installedAt: new Date().toISOString() };
+  fs.writeFileSync(path.join(dest, MARKER), JSON.stringify(marker, null, 2) + '\n');
+  return dest;
+}
+
+async function cmdInstall(args) {
+  const skill = requireSkill(args);
+  if (installedInfo(skill) && !args.force) {
+    const ok = await confirm(`"${skill}" is already installed at ${path.join(SKILLS_DEST, skill)}. Overwrite?`);
+    if (!ok) {
+      console.log('Aborted. Nothing was changed.');
+      return 1;
+    }
+  }
+  const dest = copySkill(skill);
+  console.log(`✓ Installed ${skill} (v${PKG.version}) at ${dest}`);
+  console.log(`  Restart Claude Code, then run /${skill}.`);
+  return 0;
+}
+
 function cmdList() {
   const skills = availableSkills();
   if (skills.length === 0) {
@@ -70,6 +120,7 @@ function cmdList() {
 
 const COMMANDS = {
   list: cmdList,
+  install: cmdInstall,
 };
 
 async function main() {
