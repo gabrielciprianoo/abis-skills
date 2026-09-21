@@ -36,7 +36,7 @@ Session files live in `~/.claude/pr-review/sessions/<owner>__<repo>__<pr>.json` 
    - Recommendation: `Continue review of #N` for the most recent session **unless** its PR has new commits or is not open; in that case recommend `Start new`.
 5. Handle the answer:
    - **Continue** and `headSha` changed → warn: "PR #N has new commits since this session. Line numbers in saved comments may be wrong." Ask (header `New commits`): `Start over on this PR (Recommended)` / `Continue anyway`. Start over → delete that session file and go to Step 2 with that PR preselected (skip the PR question in Step 4).
-   - **Continue** (head unchanged or `Continue anyway`) → load the session: `githubUser`, `reviewLanguage`, `commentLanguage`, `criteria`, `findings`, `currentIndex`. Run Step 2 (connection check) and verify the connected login equals `githubUser`; if it differs, warn and ask `Continue as @<current> (Recommended)` / `Cancel`. Then skip Steps 3–8 and resume the walkthrough (Step 9) at `findings[currentIndex]`, using the saved languages.
+   - **Continue** (head unchanged or `Continue anyway`) → load the session: `githubUser`, `reviewLanguage`, `commentLanguage`, `criteria`, `findings`, `currentIndex`. Run Step 2 (connection check) and verify the connected login equals `githubUser`; if it differs, warn and ask `Continue as @<current> (Recommended)` / `Cancel`. Then skip Steps 3–8 and resume the walkthrough (Step 9) at `findings[currentIndex]`, using the saved languages. If `commentLanguage` is `null` (the session was interrupted before Step 8), run Step 8 first.
    - **Discard pending** → if there is only one session, delete it. If there are several, ask a multi-select question (header `Discard`) listing them (paginate if more than 4) and delete the selected ones. Then continue to Step 2 as a new review.
    - **Start new** → go to Step 2.
 
@@ -105,3 +105,177 @@ Keep `owner`, `repo`, `prNumber`, `headSha` (= `headRefOid`), `author.login`, `u
 If a pending session exists for this same PR (`<owner>__<repo>__<n>.json`) and the user chose `Start new`, warn that it will be replaced when the new summary is saved.
 
 If `author.login` equals `githubUser`, note it: only the `COMMENT` event will be available when publishing.
+
+---
+
+## Step 5 — Review criteria
+
+Ask **one** `AskUserQuestion` call with two multi-select questions (header `Criteria`):
+
+**Question 1 — "Which design criteria should the review focus on?"**
+
+| Label | Description | Id |
+| --- | --- | --- |
+| `SOLID` | Single responsibility, open/closed, substitution, interface segregation, dependency inversion | `solid` |
+| `DRY` | Duplicated logic, copy-pasted code, missing abstractions | `dry` |
+| `KISS` | Needless complexity, over-engineering, clever code that hurts readability | `kiss` |
+| `Scalability` | Growth in data, traffic or features; coupling that blocks evolution | `scalability` |
+
+**Question 2 — "Which quality criteria should the review focus on?"**
+
+| Label | Description | Id |
+| --- | --- | --- |
+| `Bugs/logic (Recommended)` | Wrong behavior, edge cases, null handling, race conditions, broken contracts | `bugs-logic` |
+| `Security (Recommended)` | Injection, secrets, authz/authn, unsafe input, data exposure | `security` |
+| `Performance` | Unnecessary work, N+1 queries, re-renders, blocking I/O, memory | `performance` |
+| `Atomic Design` | Component hierarchy (atoms/molecules/organisms), reuse, UI composition | `atomic-design` |
+
+Mention in the question text that "Other" adds a custom focus (e.g. accessibility, testing, naming). Each custom focus is stored as `custom:<kebab-case>` (e.g. `custom:accessibility`).
+
+If nothing was selected in either question, ask (header `Criteria`): `Use Bugs/logic + Security (Recommended)` / `Choose again`.
+
+Store the result as `criteria` (array of ids).
+
+---
+
+## Step 6 — Context loading and analysis
+
+### 6.1 Files
+
+1. List changed files: `gh pr diff <n> -R <owner>/<repo> --name-only`.
+2. **Ignore** (do not read, do not review) and tell the user which were skipped:
+   - Lockfiles: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lockb`, `composer.lock`, `Gemfile.lock`, `poetry.lock`, `Pipfile.lock`, `Cargo.lock`, `go.sum`.
+   - Build output: anything under `dist/`, `build/`, `out/`, `.next/`, `coverage/`.
+   - Minified files: `*.min.*`.
+   - Snapshots: `__snapshots__/`, `*.snap`.
+   - Generated files: `*.generated.*`, `*.g.dart`, `*.pb.go`, `*_pb2.py`, or files whose first lines contain `@generated`, `DO NOT EDIT` or `auto-generated`.
+3. Get the diff: `gh pr diff <n> -R <owner>/<repo>`. Work only with the hunks of non-ignored files.
+4. For every non-ignored, non-deleted file, read the **full file at the PR head** without switching branches:
+   `gh api -H "Accept: application/vnd.github.raw" "repos/<owner>/<repo>/contents/<path>?ref=<headSha>"`
+5. Read the reviewed repo's guidelines at the base branch, if they exist: `CLAUDE.md` and `AGENTS.md` at the root and in the directories of the changed files (same `gh api` call with `ref=<baseRefName>`; a 404 just means it does not exist). Findings must respect these conventions.
+6. **Related files on demand only:** when a finding depends on code outside the diff (a called function, an interface, usages of a changed export), fetch that file with the same `gh api` call (or `grep` locally if the current folder is that repo). Do not bulk-load the project.
+
+### 6.2 Diff map
+
+From each file's hunk headers `@@ -a,b +c,d @@`, record the line ranges each hunk covers:
+- `RIGHT` side (new code): lines `c` … `c + d - 1`.
+- `LEFT` side (removed code): lines `a` … `a + b - 1`.
+
+A comment is `inDiff: true` only if its whole range (`startLine`…`line`) sits inside **one** hunk on its `side`. Otherwise `inDiff: false`: it will go into the review body with a `path:startLine-line` reference.
+
+### 6.3 Analysis
+
+Review the changes against the selected `criteria` only. For each real issue create a finding:
+
+- **Be concrete.** Every finding points to exact lines and is verified against the full file, not only the diff. No speculation, no style nitpicks outside the criteria, no praise-only findings.
+- **Merge duplicates.** The same issue in several places is one finding whose solutions carry several comments.
+- **Severity:**
+  - `critical` 🔴 — security hole, data loss, crash or broken core behavior in normal use.
+  - `high` 🟠 — bug in a realistic scenario, or a design problem that will clearly cause defects.
+  - `medium` 🟡 — maintainability/scalability/performance issue with real but non-immediate cost.
+  - `low` 🔵 — minor improvement that is still worth mentioning.
+- **Priority** (1..N, 1 = resolve first): order by severity, then by impact, then put findings that other findings depend on first (e.g. fix the wrong abstraction before its duplicated usages).
+- **Solutions:** 2–3 per finding, each with a short `title`, a `description` (in `reviewLanguage`) and 1..N comment **locations** (`path`, `startLine`, `line`, `side`, `inDiff`). Leave each comment `body` as `""`: bodies are drafted in Step 9, after the comment language is chosen.
+- Write `title` and `problem` in `reviewLanguage`. `problem` includes the relevant code snippet.
+
+If there are **no findings**, say so clearly and ask (header `No findings`): `Finish without publishing (Recommended)` / `Go to publishing` (e.g. to approve or leave a general comment → Step 10 with no inline comments).
+
+---
+
+## Step 7 — Summary
+
+Show, in `reviewLanguage`:
+
+```
+PR #42 · 5 findings
+
+| Severity    | Count |
+| ----------- | ----- |
+| 🔴 Critical |   1   |
+| 🟠 High     |   2   |
+| 🟡 Medium   |   1   |
+| 🔵 Low      |   1   |
+
+#1 🔴 critical — Token exposed in logs — src/auth.ts:15-19
+#2 🟠 high — Missing null check on user profile — src/profile.ts:42
+...
+```
+
+- The list is ordered by `priority`. The location is the first comment location of the first solution (`path:line` or `path:startLine-line`).
+- Then **save the session JSON** (see "Session JSON") with `currentIndex: 0`, `commentLanguage: null`, every finding `status: "pending"`. Create the folder first: `mkdir -p ~/.claude/pr-review/sessions`. This replaces any previous session file for the same PR.
+
+---
+
+## Step 8 — Comment language
+
+Ask (header `Comments`): "In which language should the PR comments be written?"
+
+- `Español`
+- `English`
+
+Recommend the language of the PR title/description; if unclear, recommend `reviewLanguage`. This only affects comment bodies and the review body; the conversation stays in `reviewLanguage`.
+
+Store it as `commentLanguage` and save the session JSON.
+
+---
+
+## Session JSON
+
+Path: `~/.claude/pr-review/sessions/<owner>__<repo>__<prNumber>.json` (use the absolute home path when writing).
+
+```json
+{
+  "version": 1,
+  "owner": "goldengate",
+  "repo": "web-app",
+  "prNumber": 42,
+  "headSha": "abc123",
+  "githubUser": "octocat",
+  "reviewLanguage": "es",
+  "commentLanguage": "en",
+  "criteria": ["solid", "dry", "kiss", "scalability", "atomic-design", "performance", "bugs-logic", "security", "custom:accessibility"],
+  "currentIndex": 2,
+  "findings": [
+    {
+      "id": "F1",
+      "priority": 1,
+      "severity": "critical",
+      "criterion": "security",
+      "title": "Token exposed in logs",
+      "problem": "Detailed explanation of the problem...",
+      "solutions": [
+        {
+          "id": "S1",
+          "title": "Remove the log",
+          "description": "...",
+          "comments": [
+            { "path": "src/auth.ts", "startLine": 15, "line": 19, "side": "RIGHT", "body": "...", "inDiff": true }
+          ]
+        }
+      ],
+      "status": "pending",
+      "chosenSolutionIds": [],
+      "finalComments": []
+    }
+  ],
+  "createdAt": "2026-09-21T12:00:00Z",
+  "updatedAt": "2026-09-21T12:10:00Z"
+}
+```
+
+Conventions:
+
+- `severity`: `critical` | `high` | `medium` | `low`.
+- `priority`: integer 1..N, the order in which findings are walked (1 = resolve first). `findings` is stored sorted by `priority`; `currentIndex` indexes into that array.
+- `status`: `pending` | `approved` | `discarded`.
+- `startLine` is omitted for single-line comments.
+- `side`: `RIGHT` (new code) or `LEFT` (removed code).
+- `body` is `""` until drafted in Step 9. `finalComments` holds the comments exactly as they will be published (same shape as `comments`).
+- `inDiff: false` → the comment goes into the review body with a `path:startLine-line` reference.
+- `commentLanguage` is `null` until Step 8.
+- Base criteria: `solid`, `dry`, `kiss`, `scalability`, `atomic-design`, `performance`, `bugs-logic`, `security`. User-defined ones use the `custom:` prefix.
+
+Saving rules:
+
+- Save after the summary (Step 7), after the comment language (Step 8) and after **every** decision in Step 9.
+- Always rewrite the whole file and refresh `updatedAt` (ISO 8601 UTC). Keep `createdAt` unchanged.
