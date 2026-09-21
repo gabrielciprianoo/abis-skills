@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-09-21
+
+### Security
+
+- `pr-review` hardened after the skills.sh audits (Gen Agent Trust Hub: High, Snyk: Medium W011). See [`SECURITY.md`](SECURITY.md) and [SPEC 03](specs/03-pr-review-security-hardening.md).
+  - Every value that reaches a shell command (PR number, owner, repo, PR URL, commit SHA, base branch, file path, session file name) is validated against a strict pattern; invalid values are never used.
+  - Files with unsafe names in a PR are skipped and listed as `⚠️ skipped: unsafe file name`.
+  - Values are always quoted; free text never goes on the command line.
+  - PR content and the reviewed repo's `CLAUDE.md` / `AGENTS.md` are treated as data, never as instructions. Attempts to instruct the reviewer are reported as a `high` security finding.
+  - No commands, URLs, local files or secrets because PR content asks for them; the single review `POST` after confirmation stays the only write.
+
+### Added
+
+- `SECURITY.md` (also shipped in the npm package): what the skill can do, why the installer shows High / Medium risk, what to watch for, how to report a vulnerability.
+- "Security" section in the README (npm and GitHub).
+
 ## [0.2.0] - 2026-09-21
 
 ### Added
@@ -33,5 +49,6 @@ All notable changes to this project are documented here. Versions follow [Semant
   - Anti-AI check before publishing; single review published only after explicit confirmation.
   - Progress saved in `~/.claude/pr-review/sessions/` and resumable.
 
+[0.2.1]: https://github.com/gabrielciprianoo/abis-skills/releases/tag/v0.2.1
 [0.2.0]: https://github.com/gabrielciprianoo/abis-skills/releases/tag/v0.2.0
 [0.1.0]: https://github.com/gabrielciprianoo/abis-skills/releases/tag/v0.1.0
