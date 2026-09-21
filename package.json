@@ -1,0 +1,22 @@
+{
+  "name": "@goldengate/skills",
+  "version": "0.1.0",
+  "description": "Collection of Claude Code skills installable globally into ~/.claude/skills/",
+  "bin": {
+    "goldengate-skills": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "skills"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "code-review"
+  ],
+  "license": "MIT"
+}
