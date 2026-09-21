@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -11,6 +12,8 @@ const PKG = require(path.join(PKG_ROOT, 'package.json'));
 const SKILLS_SRC = path.join(PKG_ROOT, 'skills');
 const SKILLS_DEST = path.join(os.homedir(), '.claude', 'skills');
 const MARKER = '.installed.json';
+const SKILLS_CLI = 'skills@latest';
+const SOURCE = `gabrielciprianoo/abis-skills#v${PKG.version}`;
 
 const USAGE = `Usage: abis-skills <command> [options]
 
@@ -77,6 +80,39 @@ function requireSkill(args) {
     throw new Error(`skill "${skill}" does not exist in ${PKG.name}. Available: ${list}`);
   }
   return skill;
+}
+
+function delegate(npxArgs) {
+  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  return new Promise((resolve) => {
+    let child;
+    try {
+      // Node >= 18.20 refuses to spawn .cmd files without a shell on Windows.
+      child = spawn(npx, npxArgs, { stdio: 'inherit', shell: process.platform === 'win32' });
+    } catch (err) {
+      resolve(delegateFailed(err));
+      return;
+    }
+    // Let the child handle Ctrl+C; its exit code is ours.
+    const ignore = () => {};
+    process.on('SIGINT', ignore);
+    child.on('error', (err) => {
+      process.off('SIGINT', ignore);
+      resolve(delegateFailed(err));
+    });
+    child.on('exit', (code) => {
+      process.off('SIGINT', ignore);
+      resolve(code ?? 1);
+    });
+  });
+}
+
+function delegateFailed(err) {
+  console.error(
+    `Error: could not run "npx ${SKILLS_CLI}" (${err.code || err.message}).\n` +
+      `Install a skill without the interactive selector: abis-skills install <skill>`
+  );
+  return 1;
 }
 
 function isManaged(info) {
