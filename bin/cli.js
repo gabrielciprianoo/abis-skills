@@ -22,7 +22,13 @@ const DELEGATE = {
   uninstall: ['-y', SKILLS_CLI, 'remove', '-a', 'claude-code'],
 };
 
-const USAGE = `Usage: abis-skills <command> [options]
+const USAGE = `Usage: abis-skills [command] [options]
+
+Interactive (terminal only, via npx ${SKILLS_CLI}, Claude Code):
+  abis-skills          Pick skills to install from an interactive selector
+  install              Same as above
+  update               Update skills installed with the selector
+  uninstall            Remove skills installed with the selector
 
 Commands:
   list                 List available skills and their install status
@@ -31,7 +37,7 @@ Commands:
   uninstall <skill>    Remove an installed skill
 
 Options:
-  -f, --force          Overwrite or remove without asking for confirmation
+  -f, --force          Overwrite or remove without asking (requires <skill>)
   -h, --help           Show this help
   -v, --version        Show version`;
 
