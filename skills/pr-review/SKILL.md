@@ -219,6 +219,109 @@ Store it as `commentLanguage` and save the session JSON.
 
 ---
 
+## Step 9 — Step by step
+
+Walk the findings in `priority` order, starting at `findings[currentIndex]`. Skip findings whose `status` is not `pending` (already decided in a previous run). The user may stop at any time: progress is in the session JSON and Step 1 will offer to resume.
+
+### Localized headings
+
+Use these texts literally, according to `reviewLanguage`:
+
+| Key | `en` | `es` |
+| --- | --- | --- |
+| Progress line | `Finding <i>/<total> · <severity> · <criterion>` | `Hallazgo <i>/<total> · <severidad> · <criterio>` |
+| Problem | `This is the problem` | `Este es el problema` |
+| Solutions | `These are the possible solutions` | `Estas son las posibles soluciones` |
+| Severity | `🔴 Critical`, `🟠 High`, `🟡 Medium`, `🔵 Low` | `🔴 Crítico`, `🟠 Alto`, `🟡 Medio`, `🔵 Bajo` |
+
+### 9.1 Draft the comment bodies
+
+Before showing the finding, draft the `body` of every comment of every solution (those still `""`) in `commentLanguage`, then save the JSON. Each body:
+
+- Reads as written by the reviewer (`githubUser`): first person, natural, direct and respectful. Collaborative tone ("What do you think about…", "¿Qué te parece…").
+- Says what is wrong at **that** location, why it matters, and what to change. One comment = one point. Short: 1–4 sentences plus code if useful.
+- When the fix replaces exactly the commented lines and `inDiff` is `true`, may include a GitHub suggestion block:
+  ````
+  ```suggestion
+  <replacement lines>
+  ```
+  ````
+- Contains **no trace of AI**: no `Co-Authored-By`, no `Generated with`, no `🤖`, no mention of Claude, Anthropic, AI/IA, "as an assistant", "I analyzed", etc.
+- Does not reference finding ids, severities or priorities (`F1`, `🔴`, `#1`); those are internal.
+
+### 9.2 Show the finding
+
+```
+Finding 1/5 · 🔴 Critical · Security
+Token exposed in logs
+
+**This is the problem:**
+<detailed explanation, in reviewLanguage>
+<code snippet with path:lines>
+
+**These are the possible solutions:**
+
+S1 — Remove the log
+<description>
+  💬 src/auth.ts:15-19 (inline)
+     > <body>
+  💬 src/logger.ts:8 (inline)
+     > <body>
+
+S2 — Mask the token
+<description>
+  💬 src/auth.ts:15-19 (inline)
+     > <body>
+  💬 src/config.ts:40 ⚠️ outside the diff → will go in the review body
+     > <body>
+```
+
+Translate labels such as "inline" and "outside the diff → will go in the review body" to `reviewLanguage`. Comment bodies are shown in `commentLanguage`.
+
+### 9.3 Choose solutions
+
+Ask a **multi-select** `AskUserQuestion` (header `Solutions`), "Which solutions do you want to include in the review?":
+
+- One option per solution (max 3): label `S<n> — <title>`, description `<N> comment(s)`. The best solution goes first with ` (Recommended)`.
+- `Discard finding` — do not comment on this.
+
+Handle the answer:
+
+- **Nothing selected** → ask again.
+- **`Discard finding` together with solutions** → ask (header `Confirm`): `Include selected solutions (Recommended)` / `Discard finding`.
+- **`Discard finding`** → set `status: "discarded"`, `chosenSolutionIds: []`, `finalComments: []`, increment `currentIndex`, save the JSON, go to the next finding.
+- **Solutions selected** → set `chosenSolutionIds`. Build `finalComments` as the union of their comments. If two comments share the same `path`, `side` and range, merge them into one comment (combine the bodies coherently). Save the JSON and go to 9.4.
+
+### 9.4 Review the comments
+
+Show `finalComments` numbered: `1. 💬 src/auth.ts:15-19` followed by the body.
+
+Ask (header `Comments`), "How do you want to continue with these comments?":
+
+- `Edit a comment (Recommended)` — change the wording; the review is yours.
+- `Add more context` — add your own knowledge, a reason, a link or an example.
+- `Post as is` — queue these comments for the final review. **Nothing is published yet.**
+
+Handle the answer:
+
+- **Edit a comment**
+  1. If there is more than one comment, ask which one (header `Comment`), one option per comment (label `<n>. <path>:<lines>`, description = start of the body), paginating with `See more` when there are more than 4.
+  2. Ask (header `Edit`), "Write the new text in 'Other', or pick an adjustment:": `Make it shorter`, `Make the tone softer`, `Make it more direct`. The typed text via "Other" is used **verbatim** as the new body; if it clearly reads as an instruction to you (e.g. "mention the RFC too"), apply it instead.
+  3. Update that comment in `finalComments`, save the JSON, show the new body and ask the 9.4 question again.
+- **Add more context**
+  1. Choose the comment as in "Edit" step 1.
+  2. Ask (header `Context`), "Write the context in 'Other', or pick one:": `Add a code suggestion` (only for `inDiff: true` comments), `Explain the impact in more detail`, `Add a usage example`. Typed text via "Other" is the user's context: weave it into the comment in the reviewer's voice, keeping the user's facts and intent.
+  3. Update, save the JSON, show the new body and ask the 9.4 question again.
+- **Post as is** → set `status: "approved"`, increment `currentIndex`, save the JSON, go to the next finding.
+
+Every body the user edits or adds still follows the rules of 9.1 (no trace of AI).
+
+### 9.5 End of the walkthrough
+
+When no `pending` findings remain, show: `<approved> approved · <discarded> discarded · <comments> comments queued` and go to Step 10. If every finding was discarded, say so and continue to Step 10 anyway (the user may still approve or leave a general comment).
+
+---
+
 ## Session JSON
 
 Path: `~/.claude/pr-review/sessions/<owner>__<repo>__<prNumber>.json` (use the absolute home path when writing).
