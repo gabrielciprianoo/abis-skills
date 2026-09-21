@@ -15,6 +15,11 @@ const MARKER = '.installed.json';
 const SKILLS_CLI = 'skills@latest';
 const SOURCE = `gabrielciprianoo/abis-skills#v${PKG.version}`;
 
+// command (no skill name, TTY) → npx arguments
+const DELEGATE = {
+  install: ['-y', SKILLS_CLI, 'add', SOURCE, '-a', 'claude-code'],
+};
+
 const USAGE = `Usage: abis-skills <command> [options]
 
 Commands:
@@ -146,6 +151,7 @@ function copySkill(skill) {
 }
 
 async function cmdInstall(args) {
+  if (!args.positional.length && process.stdin.isTTY) return delegate(DELEGATE.install);
   const skill = requireSkill(args);
   if (installedInfo(skill) && !args.force) {
     const ok = await confirm(`"${skill}" is already installed at ${path.join(SKILLS_DEST, skill)}. Overwrite?`);
