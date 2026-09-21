@@ -1,6 +1,6 @@
 # SPEC 01 — `/pr-review` skill installable globally via npx
 
-> **Status:** Draft
+> **Status:** Approved
 > **Depends on:** —
 > **Date:** 2026-09-21
 > **Objective:** Build the `/pr-review` skill, which reviews a GitHub PR step by step with user approval on every finding and posts inline comments with no trace of AI, distributed via `npx @goldengate/skills install pr-review`.
