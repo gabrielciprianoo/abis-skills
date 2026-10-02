@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `/spec-split` skill: splits an approved spec into sub-specs, one functionality and one PR each, with one commit per step. See [SPEC 04](specs/04-spec-split-skill.md).
+  - Splits by functionality (never by file or layer) and checks every sub-spec: one sentence without "and", verifiable result, reviewable alone, doesn't break the repo.
+  - Copies the repo's spec language and labels, commit style, branch naming and base branch.
+  - Shows the full split and writes nothing until the user confirms.
+  - Writes `specs/NN.k-slug.md` per sub-spec with steps, commit messages, acceptance criteria, PR draft and reviewer heads-up, plus a delivery table in the parent spec.
+  - Only writes Markdown in `specs/`: no code, branches, commits or PRs.
+
 ## [0.2.1] - 2026-09-21
 
 ### Security
