@@ -25,7 +25,7 @@ This opens an interactive selector: search the list, pick the skills you want (o
 - **Global**: available in every project.
 - **Project**: only in the current directory.
 
-Restart Claude Code and run the skill, e.g. `/pr-review`.
+Restart Claude Code and run the skill, e.g. `/pr-review` or `/spec-split`.
 
 The selector is [Vercel's `skills` CLI](https://github.com/vercel-labs/skills) (`npx skills@latest`), run for you by `abis-skills`:
 
@@ -120,6 +120,30 @@ Details:
 - Progress is saved after every decision in `~/.claude/pr-review/sessions/<owner>__<repo>__<pr>.json`. Relaunching `/pr-review` offers to continue. The file is deleted after a successful publish.
 - It never modifies code, switches branches or checks out the PR.
 - On your own PR, only `COMMENT` is available (GitHub rule).
+
+### `spec-split`
+
+Splits an **approved spec** into sub-specs: each sub-spec is one specific functionality and becomes one pull request, and each step of a sub-spec is one commit. Use it between `/spec` and `/spec-impl` when a spec is too big for a single PR.
+
+```text
+/spec-split                     # pick the spec to split
+/spec-split 09                  # spec by number
+/spec-split 09-part-management  # spec by file name
+```
+
+Flow:
+
+1. Finds the spec and checks it is approved and not split yet.
+2. Reads `CLAUDE.md`/`AGENTS.md`, recent specs and `git log` to copy the language, header labels, commit style, branch naming and base branch.
+3. Proposes the split: sub-specs by functionality (never by file or layer), steps per sub-spec, one commit message per step, and PR, branch and base per sub-spec. Every sub-spec passes four checks: one sentence without "and", a result someone else can verify, reviewable alone, doesn't break the repo when merged.
+4. You confirm or adjust the split. **Nothing is written before this point.**
+5. Writes `specs/NN.k-slug.md` per sub-spec (scope, steps with commit messages, acceptance criteria, how to verify, PR title and description, heads-up message for the reviewer) and adds a "Delivery in sub-specs" table to the parent spec.
+
+Details:
+
+- It only writes `.md` files in `specs/`. It never writes code, creates branches, commits, pushes or opens PRs.
+- Sub-specs start as `Draft`; approve each one and implement it with `/spec-impl NN.1`, `/spec-impl NN.2`, …
+- Every acceptance criterion of the parent spec is assigned to exactly one sub-spec.
 
 ## Security
 
