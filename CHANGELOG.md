@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-10-07
+
+### Added
+
+- New skill `review-fixes` (`/review-fixes`): reviews the current branch's commits against its base branch and writes one fix spec per finding into `fixes/<branch-slug>/`. See [SPEC 04](specs/04-review-fixes-skill.md).
+  - Base branch detected from the open PR (or the remote default branch) and confirmed by the user. Only committed changes are reviewed; uncommitted ones are reported and left out.
+  - Criteria: SOLID, DRY, KISS, Scalability, Bugs/logic, Security, GitHub comments, plus custom ones. GitHub comments are read-only, filtered by reviewer, and checked against `HEAD` (already fixed ones are skipped).
+  - Findings ordered from critical to low in `fixes/<branch-slug>/README.md`; each decided finding becomes `NN-slug.md` with problem, why it fails, one decided solution, discarded alternatives, implementation plan and acceptance criteria. Fix files are checked for open decisions and hedging words before being written.
+  - Resume from the first undecided finding by relaunching `/review-fixes`.
+  - Read-only on git and GitHub; the only files written are under `fixes/<branch-slug>/`. Same validation and prompt-injection rules as `pr-review`.
+- README section for `review-fixes`; `SECURITY.md` section on what `review-fixes` can do.
+
 ## [0.2.1] - 2026-09-21
 
 ### Security
