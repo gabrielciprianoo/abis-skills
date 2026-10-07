@@ -1,6 +1,6 @@
 # SPEC 05 — `fix-impl` skill: implement fix specs step by step
 
-> **Status:** Draft
+> **Status:** Approved
 > **Depends on:** SPEC 04
 > **Date:** 2026-10-07
 > **Objective:** Add a `/fix-impl` skill that reads the fix specs written by `/review-fixes` in `fixes/<branch-slug>/`, implements the unfinished ones in priority order one step at a time, asks per fix which branch to use, and updates checkboxes and statuses so progress survives between runs.
