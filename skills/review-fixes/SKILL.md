@@ -385,3 +385,150 @@ Rules:
 - **Discarded:** one line per discarded finding with the user's reason.
 - **Skipped:** unsafe and ignored files (Step 5.6) and GitHub comments not turned into findings (Step 6.3), each with its reason.
 - Omit a section (`Findings not yet decided`, `Discarded`, `Skipped`) when it has no entries.
+
+---
+
+## Step 8 — Walkthrough
+
+Go through every `Undecided` finding in priority order. `<total>` is the number of findings in the README; `<i>` is the finding's position among them.
+
+### 8.1 Show the finding
+
+```
+Finding <i>/<total> · 🟠 high · bugs-logic
+02 — Missing null check on profile — src/profile.ts:42
+Source: analysis
+
+Problem
+<what the code does, with the snippet and path:lines>
+
+Why it fails
+<root cause + one concrete scenario: input/state → wrong result>
+
+Solutions
+1. <title> — <what changes>. Trade-offs: <pros / cons>
+2. <title> — <what changes>. Trade-offs: <pros / cons>
+3. <title> — <what changes>. Trade-offs: <pros / cons>
+```
+
+### 8.2 Choose the solution
+
+Ask with `AskUserQuestion` (header `Solution`), single-select: "Which solution should the fix use?"
+
+- One option per solution (max 3), best first with ` (Recommended)`. Label = solution title; description = one line with what changes and the main trade-off.
+- `Discard finding` — no fix for this finding.
+- "Other" = the user's own solution, in free text.
+
+### 8.3 Close open decisions
+
+If the chosen solution (or the user's own solution) leaves a decision open — a name, a file, a library, a behavior, an error message, a default value — ask it now with `AskUserQuestion` (header `Decision`): 2–3 concrete options, recommended first, "Other" for a custom value. One question per open decision; up to 4 questions in one call.
+
+**Never write a fix file with an open decision.** If the user's own solution is too vague to produce file-level steps, ask for the missing details the same way.
+
+### 8.4 Discard
+
+If the user picked `Discard finding`, ask (header `Reason`): "Why discard this finding?"
+
+- `Not a real problem`
+- `Out of this branch's scope`
+- `Will be handled elsewhere`
+- "Other" for a free-text reason.
+
+No option is recommended. Then update the README with the Edit tool: the row's `Status` becomes `Discarded` (`File` stays `—`), the finding's block under "Findings not yet decided" is removed, and a line `- **NN — <title>:** <reason>` is added under "Discarded". No fix file is written. Go to the next finding (8.6 is not asked).
+
+### 8.5 Write the fix file
+
+1. Compute the file name `NN-slug.md`: `NN` = the finding's two-digit priority; `slug` = the title in kebab-case: lowercase, accents removed (`á` → `a`, `ñ` → `n`), every run of characters outside `a-z0-9` replaced by `-`, leading/trailing `-` removed, cut to 50 characters without a trailing `-`. If the slug ends up empty, use `fix`.
+2. Build the content with the "Fix file format" below, in `language`.
+3. Run the "Fix file rules" check on it and correct every failure before writing.
+4. Write `fixes/<branch-slug>/NN-slug.md` with the Write tool.
+5. Update the README with the Edit tool: the row's `Status` becomes `Pending`, `File` becomes `[NN-slug.md](NN-slug.md)`, and the finding's block under "Findings not yet decided" is removed.
+6. Show `✓ fixes/<branch-slug>/NN-slug.md`.
+
+### 8.6 Next
+
+Ask (header `Next`): "Fix written. What next?"
+
+- `Next finding (Recommended)` — or `Finish (Recommended)` on the last `Undecided` finding.
+- `Adjust this fix`
+- `Stop here` — the remaining findings stay `Undecided`; relaunch `/review-fixes` to continue.
+
+`Adjust this fix` → ask (header `Adjust`): "What should change?"
+
+- `Change the solution` — back to 8.2 for this finding; the previous solution becomes a discarded alternative only if it was one of the shown solutions.
+- `Split a step` — ask which step (header `Step`, paginated) and split it into steps that each touch one file or one concern.
+- `Add an acceptance criterion` — ask for it through "Other" in a follow-up question (header `Criterion`) with 2–3 suggested yes/no checks.
+- "Other" — any other change, in free text.
+
+Apply the change, run the "Fix file rules" check again, rewrite the file with the Write tool (same name, unless the title changed: then rename by writing the new file, deleting the old one inside `fixes/<branch-slug>/` and updating the README link), and ask 8.6 again.
+
+`Stop here` or `Finish` → Step 9 ("End").
+
+---
+
+## Fix files
+
+### Fix file format
+
+Path: `fixes/<branch-slug>/NN-slug.md`.
+
+```markdown
+# FIX 01 — Token logged in plain text
+
+> **Status:** Pending
+> **Severity:** 🔴 critical
+> **Criterion:** security
+> **Location:** src/auth.ts:15-19
+> **Source:** analysis
+> **Reviewed HEAD:** 9f8e7d6
+> **Date:** 2026-10-07
+
+## Problem
+<what the code does, with the snippet and path:lines>
+
+## Why it fails
+<root cause, and one concrete scenario: input/state → wrong result>
+
+## Decided solution
+<the single chosen solution: what changes, in which file, with which names>
+
+## Discarded alternatives
+- **<title>:** <why not>
+
+## Implementation plan
+- [ ] 1. <step, one file or one concern, commitable on its own>
+- [ ] 2. ...
+
+## Acceptance criteria
+- [ ] <boolean, verifiable check>
+```
+
+- **Header** (the `>` lines): labels always in English, in this order, in both languages. `Status` is always `Pending` when this skill writes the file (`In progress` and `Done` belong to `/fix-impl`). `Severity` = emoji + English severity. `Criterion` = the criterion id. `Source` = `analysis` or `GitHub comment by @<login> — <url>`. `Reviewed HEAD` and `Date` = the README values.
+- **Title:** `# FIX NN — <title>`, `FIX` in both languages.
+- **Sections:** all six, in this order, with these headings used literally:
+
+  | `en` | `es` |
+  | --- | --- |
+  | `Problem` | `Problema` |
+  | `Why it fails` | `Por qué falla` |
+  | `Decided solution` | `Solución decidida` |
+  | `Discarded alternatives` | `Alternativas descartadas` |
+  | `Implementation plan` | `Plan de implementación` |
+  | `Acceptance criteria` | `Criterios de aceptación` |
+
+- **Implementation plan:** numbered `- [ ] N.` checkboxes. Each step touches one file or one concern, names the file, and can be committed on its own.
+- **Acceptance criteria:** `- [ ]` checkboxes, each a yes/no check.
+
+### Fix file rules (no-ambiguity check)
+
+Before writing or rewriting a fix file, check it. Correct every failure; if correcting it needs a user decision, ask it (8.3) first.
+
+1. **One solution.** "Decided solution" describes exactly one solution.
+2. **No hedging.** "Decided solution", "Implementation plan" and "Acceptance criteria" contain none of these words or phrases (whole word, case-insensitive):
+   - English: `maybe`, `might`, `could`, `consider`, `probably`, `optionally`, `if needed`, `TBD`, `TODO`, `etc.`
+   - Spanish: `quizás`, `tal vez`, `podría`, `considerar`, `probablemente`, `opcionalmente`, `si es necesario`, `etc.`
+3. **Files named.** Every step of "Implementation plan" names the file it touches.
+4. **One scenario.** "Why it fails" contains one concrete scenario: input or state → wrong result.
+5. **Yes/no criteria.** Every acceptance criterion can be answered yes or no by looking at the code or running it.
+6. **Reasons for alternatives.** Every entry in "Discarded alternatives" has a reason. The section may be empty only if the user wrote their own solution and no alternatives were shown.
+7. **Branch files.** The steps touch only files changed in the branch, unless the solution requires a related file; then the step says why that file is needed.
