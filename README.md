@@ -121,6 +121,43 @@ Details:
 - It never modifies code, switches branches or checks out the PR.
 - On your own PR, only `COMMENT` is available (GitHub rule).
 
+### `review-fixes`
+
+Reviews **your own** branch: only its commits against its base branch, plus (optionally) the open PR's review comments. Each problem becomes a fix spec you decide with the agent, ready to implement later.
+
+```text
+/review-fixes   # no arguments: reviews the current branch
+```
+
+Flow:
+
+1. Offers to continue if the branch already has fixes in `fixes/<branch>/` (`Continue` / `Review again` / `Cancel`).
+2. Checks the current branch (stops in detached HEAD).
+3. Language (Español / English), for the conversation and every file written.
+4. Base branch: the open PR's base, or the remote default branch. You confirm it.
+5. Diff `merge-base..HEAD` (committed changes only; uncommitted ones are reported and left out). Lockfiles, build output and generated files are skipped.
+6. What to review: SOLID, DRY, KISS, Scalability, Bugs/logic, Security, GitHub comments, plus your own. With GitHub comments you pick which reviewers to address; each comment is checked against `HEAD`, and the ones already fixed are skipped.
+7. Report of findings from critical to low, written to `fixes/<branch>/README.md`.
+8. Walkthrough of each finding: problem, why it fails, 2–3 solutions. You pick **one** solution (or write your own) or discard the finding. The fix file is written right away.
+9. Summary: fixes written, discarded and skipped.
+
+`fixes/` layout (branch `feature/login-form`):
+
+```text
+fixes/feature-login-form/
+├── README.md                          # index: one row per finding with severity, status and link
+├── 01-token-logged-in-plain-text.md   # one fix spec per decided finding
+└── 02-missing-null-check-on-profile.md
+```
+
+Each fix file has: Problem, Why it fails, Decided solution (exactly one), Discarded alternatives, Implementation plan (`- [ ]` steps) and Acceptance criteria. Before writing a fix, the skill checks it has no open decisions or hedging words (`maybe`, `could`, `TBD`…). Status values stay in English so `/fix-impl` can read them.
+
+Details:
+
+- Every decision is an option selection; free text only when you choose "Other".
+- Progress lives in the `fixes/` files. Stop at any finding and relaunch `/review-fixes` to continue from the first undecided one.
+- **Read-only on git and GitHub:** it never modifies code, commits, stages, fetches or switches branches, and never replies to or resolves PR comments. The only files it writes are under `fixes/<branch>/`. Review them and commit them yourself.
+
 ## Security
 
 > [!WARNING]
@@ -142,6 +179,7 @@ Details, audit results and how to report a vulnerability: [SECURITY.md](https://
 ```sh
 npx abis-skills uninstall             # installed with the selector
 npx abis-skills uninstall pr-review   # installed with `install pr-review`
+npx abis-skills uninstall review-fixes   # installed with `install review-fixes`
 rm -rf ~/.claude/pr-review   # optional: pending review sessions
 ```
 
