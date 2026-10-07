@@ -1,6 +1,6 @@
 # SPEC 05 — `fix-impl` skill: implement fix specs step by step
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 04
 > **Date:** 2026-10-07
 > **Objective:** Add a `/fix-impl` skill that reads the fix specs written by `/review-fixes` in `fixes/<branch-slug>/`, implements the unfinished ones in priority order one step at a time, asks per fix which branch to use, and updates checkboxes and statuses so progress survives between runs.
@@ -122,19 +122,19 @@ Branch name default: `fix/<branch-slug>-NN-slug`, truncated to 100 characters.
 
 ## Acceptance criteria
 
-- [ ] `npx abis-skills list` and the interactive selector show `fix-impl`.
-- [ ] On a branch with `fixes/<branch-slug>/` holding fixes `01` (`Done`), `02` (`Pending`) and `03` (`In progress`, step 1 checked), `/fix-impl` proposes `03` and starts at its step 2.
-- [ ] `/fix-impl 01` on a `Done` fix says it is done and changes nothing.
-- [ ] On a branch without its own `fixes/` folder, `/fix-impl` lists the folders with unfinished fixes and asks.
-- [ ] With 2 `Undecided` rows, the skill prints the undecided warning and never implements them.
-- [ ] Choosing `New branch` asks where to create it from and the name; the new branch exists and is active after the answers.
-- [ ] With uncommitted changes outside `fixes/`, the skill stops before switching branches and does not stash or commit.
-- [ ] After step 1, the fix file shows `Status: In progress`, step 1 as `- [x]`, and the README row `In progress`, all in the same `git diff` as the code change.
-- [ ] A recorded decision appears under `## Decisions during implementation` with the step number.
-- [ ] With a failing `npm test`, the fix stays `In progress`.
-- [ ] When all criteria are checked, the fix shows `Status: Done` and `Implemented in: <branch>`, and the README row is `Done`.
-- [ ] `git log` after a full run has no new commits made by the skill.
-- [ ] Tag `v0.4.0` exists on GitHub before `npm publish`; `npm view abis-skills version` is `0.4.0`.
+- [x] `npx abis-skills list` and the interactive selector show `fix-impl`.
+- [x] On a branch with `fixes/<branch-slug>/` holding fixes `01` (`Done`), `02` (`Pending`) and `03` (`In progress`, step 1 checked), `/fix-impl` proposes `03` and starts at its step 2.
+- [x] `/fix-impl 01` on a `Done` fix says it is done and changes nothing.
+- [x] On a branch without its own `fixes/` folder, `/fix-impl` lists the folders with unfinished fixes and asks.
+- [x] With 2 `Undecided` rows, the skill prints the undecided warning and never implements them.
+- [x] Choosing `New branch` asks where to create it from and the name; the new branch exists and is active after the answers.
+- [x] With uncommitted changes outside `fixes/`, the skill stops before switching branches and does not stash or commit.
+- [x] After step 1, the fix file shows `Status: In progress`, step 1 as `- [x]`, and the README row `In progress`, all in the same `git diff` as the code change.
+- [x] A recorded decision appears under `## Decisions during implementation` with the step number.
+- [x] With a failing `npm test`, the fix stays `In progress`.
+- [x] When all criteria are checked, the fix shows `Status: Done` and `Implemented in: <branch>`, and the README row is `Done`.
+- [x] `git log` after a full run has no new commits made by the skill.
+- [x] Tag `v0.4.0` exists on GitHub before `npm publish`; `npm view abis-skills version` is `0.4.0`.
 
 ---
 
