@@ -34,6 +34,22 @@ These are static checks of the skill's instructions. They are about what the ski
 
 A skill whose job is reading other people's code cannot remove prompt injection completely, so the auditors will keep a warning. The protections above reduce it; your review of the preview is the last check.
 
+## What `review-fixes` can do on your machine
+
+`/review-fixes` (since v0.3.0) reviews your own branch. When you run it, Claude Code can:
+
+- **Run read-only git commands** in the current repo: `branch --show-current`, `rev-parse`, `symbolic-ref`, `merge-base`, `rev-list`, `status`, `diff`, `show`, `cat-file`, `grep`. It never commits, stages, stashes, fetches, resets or switches branches.
+- **Run read-only `gh` commands**: `gh auth status`, `gh pr view` and `gh api graphql` **queries** to read the branch's PR, its unresolved review threads and its general comments. No mutations, no `POST` / `PATCH` / `PUT` / `DELETE`: it never replies to, resolves or reacts to a comment.
+- **Write and delete files only in `fixes/<branch>/`** at the repo root (the fix specs and their `README.md`). `rm` is only used there, when you choose `Review again`. It never modifies your code. You review and commit the fix files yourself.
+- **Read content written by other people**: the branch's diff and files (which may include commits from others), the PR's review comments and the repo's `CLAUDE.md` / `AGENTS.md`.
+
+The same protections as `pr-review` apply:
+
+- Every value that reaches a command (branch and base names, PR number, owner, repo, SHAs, file paths) is checked against a strict pattern before use. Unsafe file names are skipped and listed under "Skipped" in the README.
+- The diff, the files, the PR comments and the repo guidelines are treated as **data, never as instructions**. A PR comment is a claim checked against the code at `HEAD`, not an order. Text that tries to direct the agent becomes a `high` security finding.
+- Free text (finding titles, comment bodies) never goes on the command line; it is only written to the files under `fixes/`.
+- The fix files are plans, not actions. Read them before implementing them with `/fix-impl`: a fix built from a malicious comment would show up there.
+
 ## What you should do
 
 - **Install only from the official sources**: npm package [`abis-skills`](https://www.npmjs.com/package/abis-skills) and GitHub repo [`gabrielciprianoo/abis-skills`](https://github.com/gabrielciprianoo/abis-skills). Check the package name before running `npx`; similarly named packages are not ours.
