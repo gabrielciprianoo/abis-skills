@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-07
+
+### Added
+
+- New skill `fix-impl` (`/fix-impl`, `/fix-impl NN`): implements the fix specs written by `/review-fixes` in `fixes/<branch-slug>/`, one fix at a time in priority order and one plan step at a time. See [SPEC 05](specs/05-fix-impl-skill.md).
+  - Folder from the current branch, or picked from the folders with unfinished fixes; kept for the whole run.
+  - `Done` fixes are skipped; the next fix is the first `In progress`, then the first `Pending`. `Undecided` findings are never implemented and are reported with a warning.
+  - Branch asked per fix: same branch or a new one, created from the reviewed branch, the current HEAD or another ref (`fix/<branch-slug>-NN-slug` by default). Working-tree check before switching; warning for uncommitted `fixes/` files.
+  - Drift check against `Reviewed HEAD` before the first step.
+  - Pause after each step (`Next step` / `Adjust this step` / `Stop here`). Plan checkboxes and the `In progress` status are updated in the same diff as the code. Ambiguities are asked and recorded under `## Decisions during implementation`.
+  - Verification: optional project checks (`test`, `lint`, `typecheck` scripts, `make test` / `make lint`) and every acceptance criterion before `Done` and `Implemented in: <branch>`. A failing check keeps the fix `In progress`.
+  - Never commits, pushes or opens PRs; no GitHub access. `disable-model-invocation: true`: runs only when the user calls it.
+- README section for `fix-impl` and a review → fix workflow line; `SECURITY.md` section on what `fix-impl` can do.
+
 ## [0.3.0] - 2026-10-07
 
 ### Added

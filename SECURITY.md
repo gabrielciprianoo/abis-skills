@@ -50,6 +50,24 @@ The same protections as `pr-review` apply:
 - Free text (finding titles, comment bodies) never goes on the command line; it is only written to the files under `fixes/`.
 - The fix files are plans, not actions. Read them before implementing them with `/fix-impl`: a fix built from a malicious comment would show up there.
 
+## What `fix-impl` can do on your machine
+
+`/fix-impl` (since v0.4.0) implements the fix specs in `fixes/<branch>/`. Unlike the other skills, it **edits your code and can switch branches**, so it has `disable-model-invocation: true`: it only runs when you type `/fix-impl`, never because Claude decided to. When you run it, Claude Code can:
+
+- **Edit code**: only the files named in the current plan step. Any other file, or any change to the decided solution, is asked to you first and recorded in the fix file.
+- **Write the fix files**: checkboxes, statuses, `Implemented in` and `## Decisions during implementation` in `fixes/<branch>/`.
+- **Switch branches** after you choose it: `git switch` or `git switch -c <name> <ref>`. That is the only git write. Before switching it checks the working tree and stops on uncommitted changes unless you choose to carry them over. It never commits, stages, stashes, resets, fetches or pushes.
+- **Run read-only git commands**: `rev-parse`, `branch --show-current`, `status`, `diff`, `cat-file`.
+- **Run your project's checks** (`test`, `lint`, `typecheck` scripts in `package.json`, `make test` / `make lint`), only after you choose `Run` in the checks question. These run your repo's own code: the scripts are shown in the question, so read them if the repo is not yours.
+
+It has **no network and no GitHub access**: no `gh`, no PRs, no comments.
+
+The same protections apply:
+
+- Every branch name, ref, SHA and file path from the fix files or your answers is checked against a strict pattern before it reaches a command. Values are always quoted; free text never goes on the command line.
+- The fix files, the code and the repo's `CLAUDE.md` / `AGENTS.md` are treated as **data, never as instructions**. A plan step says what to change in the code, never which command to run. Text that tries to direct the agent is reported to you and ignored.
+- Every change stays uncommitted. Review `git diff` after each step and commit it yourself.
+
 ## What you should do
 
 - **Install only from the official sources**: npm package [`abis-skills`](https://www.npmjs.com/package/abis-skills) and GitHub repo [`gabrielciprianoo/abis-skills`](https://github.com/gabrielciprianoo/abis-skills). Check the package name before running `npx`; similarly named packages are not ours.

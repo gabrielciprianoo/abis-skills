@@ -87,6 +87,8 @@ For the named commands (`install <skill>`, `update <skill>`, `uninstall <skill>`
 
 ## Skills
 
+Workflow for your own branch: **review → fix**. [`review-fixes`](#review-fixes) turns problems into fix specs in `fixes/<branch>/`; [`fix-impl`](#fix-impl) implements them step by step.
+
 ### `pr-review`
 
 Reviews **someone else's** GitHub pull request step by step, with your approval on every finding, and publishes a single review whose comments read as written by you.
@@ -158,6 +160,32 @@ Details:
 - Progress lives in the `fixes/` files. Stop at any finding and relaunch `/review-fixes` to continue from the first undecided one.
 - **Read-only on git and GitHub:** it never modifies code, commits, stages, fetches or switches branches, and never replies to or resolves PR comments. The only files it writes are under `fixes/<branch>/`. Review them and commit them yourself.
 
+### `fix-impl`
+
+Implements the fix specs written by `/review-fixes`, one fix at a time in priority order and one plan step at a time. You review and commit every diff yourself.
+
+```text
+/fix-impl      # next fix: first In progress, then first Pending
+/fix-impl 03   # fix 03 of the folder
+```
+
+Flow:
+
+1. Folder: `fixes/<current-branch>/`, or, if the branch has none, a list of the folders with unfinished fixes to pick from. The folder is kept for the whole run.
+2. Fix: `Done` fixes are skipped. Shows a summary (decided solution, plan with checked steps, acceptance criteria) and warns about findings still `Undecided` (decide them with `/review-fixes`; they are never implemented).
+3. Branch, **asked per fix**: `Same branch` or `New branch`, created from the reviewed branch (independent fixes), the current HEAD (stacked fixes) or another ref, named `fix/<branch>-NN-slug` by default. Before switching it stops on uncommitted changes and warns about uncommitted `fixes/` files.
+4. Drift check: warns if the files in the plan changed since the review.
+5. Steps: implements one step, ticks it `- [x]` in the fix file, sets the fix and its README row to `In progress`, shows the files touched and pauses (`Next step` / `Adjust this step` / `Stop here`). Any ambiguity or plan/code mismatch is asked to you and recorded under `## Decisions during implementation` in the fix file.
+6. Verify: offers to run the project's `test` / `lint` / `typecheck` scripts (`package.json`) or `make test` / `make lint`, then checks each acceptance criterion. Only then the fix becomes `Done`, with `Implemented in: <branch>`. A failing check keeps it `In progress`.
+7. Next fix or stop, then a summary: fixes done in this run, fixes left, undecided findings.
+
+Details:
+
+- Every decision is an option selection; free text only when you choose "Other".
+- Progress lives in the `fixes/` files, in the same diff as the code. Stop at any step and relaunch `/fix-impl` to resume at the first unchecked step.
+- **Never commits:** no `commit`, `add`, `stash`, `push` or PRs, and no GitHub access. The only git write is switching branches after you choose it.
+- It only runs when you call it (`disable-model-invocation`): Claude never starts it on its own.
+
 ## Security
 
 > [!WARNING]
@@ -180,6 +208,7 @@ Details, audit results and how to report a vulnerability: [SECURITY.md](https://
 npx abis-skills uninstall             # installed with the selector
 npx abis-skills uninstall pr-review   # installed with `install pr-review`
 npx abis-skills uninstall review-fixes   # installed with `install review-fixes`
+npx abis-skills uninstall fix-impl   # installed with `install fix-impl`
 rm -rf ~/.claude/pr-review   # optional: pending review sessions
 ```
 
