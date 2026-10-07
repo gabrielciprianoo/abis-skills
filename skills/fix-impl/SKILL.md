@@ -320,3 +320,73 @@ Example:
 ```
 
 The record goes in the same diff as the step's code.
+
+---
+
+## Step 6 — Verify
+
+Reached after the last step, or directly from Step 2.4 when every step was already checked.
+
+### 6.1 Checks
+
+1. Detect the project's check commands at the repo root:
+   - `package.json` scripts named exactly `test`, `lint` or `typecheck`. Ignore npm's placeholder (`echo "Error: no test specified" && exit 1`). Run them with the package manager of the lockfile: `pnpm-lock.yaml` → `pnpm run <script>`, `yarn.lock` → `yarn run <script>`, `bun.lockb` / `bun.lock` → `bun run <script>`, otherwise `npm run <script>`.
+   - `Makefile` targets named exactly `test` or `lint` (a line starting with `test:` or `lint:`) → `make test`, `make lint`.
+2. None detected → say "No check commands detected." and go to 6.2.
+3. Otherwise ask with `AskUserQuestion` (header `Checks`): "Run the project checks before marking FIX NN as Done?"
+   - `Run <commands> (Recommended)` — e.g. `Run npm run test, npm run lint`.
+   - `Skip checks` — go to 6.2.
+4. Run the commands one by one, exactly as listed, from the repo root. These are the only commands from the repo this skill runs, and only after this answer. Show a one-line result per command (`✓ npm run lint` / `✗ npm run test`), plus the relevant part of the output of any failure.
+5. Any failure → the fix is **not** `Done` and stays `In progress`. Ask (header `Failure`): "`<command>` failed. What do you want to do?"
+   - `Fix the failure (Recommended)` — find the cause. If this fix's changes caused it, correct it through the ambiguity flow (5.4, recorded in 5.5) and run 6.1.4 again. If the failure is not caused by this fix (it is unrelated code or the environment), say so and **stop**: the user fixes it and relaunches `/fix-impl`, which resumes at this verification.
+   - `Stop here` → go to Step 7.
+
+### 6.2 Acceptance criteria
+
+1. Check each unchecked criterion against the code at the working tree, and against the 6.1 results when it is about tests, lint or types. A criterion that holds → `- [ ]` → `- [x]` in the fix file.
+2. A criterion that cannot be decided by reading the code or by the 6.1 commands (runtime behavior, UI, external services) → ask (header `Criterion`): "<criterion> — does it hold?" `Yes, it holds` / `No`. No option is recommended. Up to 4 criteria per call. `Yes, it holds` → `- [x]`.
+3. A criterion that does not hold (by the code or by the user's `No`) stays `- [ ]`, and the fix stays `In progress`. Explain why in 1–2 lines and ask (header `Criterion`):
+   - `Fix it (Recommended)` — go to 5.4 to decide the change, apply it (5.2, recorded in 5.5), then run 6.1 and 6.2 again.
+   - `Stop here` → go to Step 7.
+
+### 6.3 Done
+
+Only when 6.1 passed (or the user chose `Skip checks`) and every acceptance criterion is `- [x]`:
+
+1. Fix file header: `Status` → `Done`, and add `> **Implemented in:** <impl-branch>` as the last header line (label in English in both languages). `<impl-branch>` is the branch chosen in Step 3, or `git branch --show-current` when Step 3 was skipped.
+2. README row `Status` → `Done`.
+3. Show:
+
+   ```
+   ✅ FIX NN — <title> · Done
+   Implemented in: <impl-branch>
+   Review the diff (`git diff`) and commit it yourself.
+   ```
+
+---
+
+## Step 7 — Next and end
+
+### 7.1 Next fix
+
+After a fix is `Done`, pick the next fix with the 2.2 rules without an argument (first `In progress`, then first `Pending`, skipping fixes skipped in this run). If there is one, ask (header `Next`): "FIX NN done. What next?"
+
+- `Next fix (<NN — title>) (Recommended)` — run Steps 2.3–6 for it with the same folder. The branch question (Step 3) is asked again.
+- `Stop here` → 7.2.
+
+No next fix → 7.2.
+
+### 7.2 End summary
+
+Reached from 7.1 or from any `Stop here`. Read the README again and show:
+
+```
+Done in this run: <NN — title>, …        (or "none")
+Left: <NN — title> (In progress), <NN — title> (Pending), …        (or "none")
+<u> findings still undecided — run /review-fixes to decide them.   (only if <u> > 0)
+Folder: fixes/<branch-slug>/
+Active branch: <current>
+Review the diff (`git diff`) and commit it yourself.
+```
+
+Do not commit, stage, push or open anything.
