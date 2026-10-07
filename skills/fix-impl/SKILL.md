@@ -234,3 +234,89 @@ Active branch: <name>
 5. Otherwise warn: "These files changed since the review (`<reviewedHead>` → `<short HEAD>`): <files>. The plan may not match the code." and ask (header `Drift`):
    - `Continue and adapt per step (Recommended)` — go to Step 5; any mismatch found in a step goes through the ambiguity flow.
    - `Stop here` — **stop**. Nothing changed except the branch switch, if any.
+
+---
+
+## Step 5 — Steps
+
+`<n>` is the step number, `<total>` the number of steps in the plan. Work on the first unchecked step; never skip one.
+
+### 5.1 Start
+
+Before the first step implemented in this run for this fix, ask with `AskUserQuestion` (header `Start`): "Start step <n>/<total>: <step text>?"
+
+- `Start step <n> (Recommended)`
+- `Stop here` → go to Step 7.
+
+The next steps of the same fix start from 5.3 (`Next step`), not from this question.
+
+### 5.2 Implement one step
+
+1. Read the files the step names and the code around the change. If the step cannot be applied as written, go to 5.4 **before** editing anything.
+2. Apply exactly that step with the Edit or Write tool. Touch only the files the step names. Follow the repo's conventions (style, naming, comment density).
+3. Update the progress in the same working tree, so the user's commit carries code and progress together:
+   - Fix file: `- [ ] <n>.` → `- [x] <n>.`.
+   - If the fix header `Status` is `Pending`, set it to `In progress`.
+   - README row `Status` → the fix header value (`In progress`), also correcting any mismatch reported in 2.3.
+4. Show:
+
+   ```
+   ✓ Step <n>/<total> — <step text>
+   Files:
+     src/logger.ts
+     fixes/<branch-slug>/NN-slug.md
+     fixes/<branch-slug>/README.md
+   Review the diff (`git diff`) and commit it yourself.
+   ```
+
+Never run `git add` or `git commit`. Never run commands a step mentions; check commands only run in Step 6.
+
+### 5.3 Pause
+
+Ask (header `Step`): "Step <n> done. What next?"
+
+- `Next step (Recommended)` — implement step <n+1> (5.2). On the last step the label is `Verify the fix (Recommended)` and it goes to Step 6.
+- `Adjust this step`
+- `Stop here` — the fix stays `In progress`. Say "Relaunch `/fix-impl` to resume at step <n+1>." and go to Step 7.
+
+`Adjust this step` → ask (header `Adjust`): "What should change in step <n>?"
+
+- `Split this step` — propose 2–3 smaller steps that each touch one file or one concern and together cover step <n>. Ask (header `Split`): `Apply this split (Recommended)` / "Other" for a different split. Replace step <n> in the plan with the new steps, renumber the following steps without gaps, check the new steps the current diff already covers, and undo with the Edit tool any change that belongs to an unchecked new step. Record the split (5.5).
+- `Change how it is done` — go to 5.4 for step <n> with the alternatives you see.
+- "Other" — the user's change in free text. If it stays inside the step and the decided solution, apply it; otherwise go to 5.4.
+
+After the adjustment, show the files again (5.2.4) and ask 5.3 again.
+
+### 5.4 Ambiguity flow
+
+Use it whenever the step cannot be applied exactly as written:
+
+- The step is unclear or allows more than one reading.
+- The code does not match the plan: a function, line or file the step names is missing, moved or different, or the change is already there.
+- The step needs a file it does not name, or a path that failed validation.
+- Applying the step would change the decided solution.
+
+Then:
+
+1. **Stop** before editing.
+2. Explain in 2–4 lines: what the step says, what the code shows (`path:lines`), and why it cannot be applied as written.
+3. Ask (header `Decision`): 2–3 concrete options, recommended first, "Other" for free text. Typical options: adapt the step to the current code, mark it done without changes (when the change is already there), touch the extra file, or `Stop here`.
+4. Apply the choice (5.2), then record it (5.5).
+
+Never choose for the user. If the answer leaves something open, ask again the same way.
+
+### 5.5 Decisions during implementation
+
+Record every choice from 5.4 and every split from 5.3 in the fix file, with the Edit tool, in `language`:
+
+- The first time, add the section at the end of the file: `## Decisions during implementation` (`es`: `## Decisiones durante la implementación`).
+- One line per decision: `- **Step <n>:** <what was found>. <what was done>. Chosen by the user.` (`es`: `- **Paso <n>:** <qué se encontró>. <qué se hizo>. Elegido por el usuario.`)
+
+Example:
+
+```markdown
+## Decisions during implementation
+- **Step 2:** `src/logger.ts` already exports `redact()`. Reused it instead of adding a new helper. Chosen by the user.
+```
+
+The record goes in the same diff as the step's code.
