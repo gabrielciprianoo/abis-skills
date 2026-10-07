@@ -149,3 +149,88 @@ Acceptance criteria
 ```
 
 The next step is the first unchecked one. A `Pending` fix starts at step 1; an `In progress` fix resumes at its first unchecked step. If every step is already checked, say so: Steps 3–5 are skipped and the fix goes straight to Step 6.
+
+---
+
+## Step 3 — Branch
+
+Asked once per fix, before its first step. `<current>` is `git branch --show-current`.
+
+### 3.1 Same or new branch
+
+Ask with `AskUserQuestion` (header `Branch`): "Where do you want to implement FIX NN?"
+
+- `Same branch (Recommended)` — description: `Stay on <current>`.
+- `New branch` — description: `Create a branch for this fix and switch to it`.
+
+`Same branch` → no switch; `<impl-branch>` = `<current>`; go to Step 4.
+
+In detached `HEAD`, do not ask: say "You are in detached HEAD; this fix needs a branch." and go to 3.2.
+
+### 3.2 Where to create it from
+
+Ask (header `From`): "Create the new branch from?"
+
+- `Reviewed branch (<README Branch>)` — offered only if the README `Branch` passed validation and exists locally (`git rev-parse --verify --quiet "refs/heads/<README Branch>"`).
+- `Current HEAD (<current>)` — in detached `HEAD`, `Current HEAD (<short HEAD>)`.
+- "Other" — another ref. Validate it ("Security rules") and check it exists (`git rev-parse --verify --quiet "<ref>^{commit}"`). Invalid or missing → say so and ask 3.2 again.
+
+No option is recommended: from the reviewed branch the fixes stay independent; from the current `HEAD` they stack.
+
+### 3.3 Branch name
+
+Ask (header `Name`): "Name of the new branch?"
+
+- `fix/<branch-slug>-NN-slug (Recommended)` — `NN-slug` is the fix file name without `.md`. Cut the whole name to 100 characters and remove a trailing `-`.
+- "Other" — a custom name. Validate it ("Security rules"); invalid → say so and ask 3.3 again.
+
+If the name already exists (`git rev-parse --verify --quiet "refs/heads/<name>"`), ask (header `Exists`): "Branch `<name>` already exists. What do you want to do?"
+
+- `Use the existing branch (Recommended)` — switch to it with `git switch "<name>"` instead of creating it; 3.2 is ignored.
+- `Choose another name` — ask 3.3 again.
+
+### 3.4 Fixes on the target
+
+The run keeps editing `fixes/<branch-slug>/README.md` and `fixes/<branch-slug>/NN-slug.md`, so both must exist after the switch. For each of the two files, it is present after the switch if it exists in the target (`git cat-file -e "<target>:fixes/<branch-slug>/<file>"`, where `<target>` is the `From` ref or the existing branch) **or** it is untracked in the working tree (it travels with the switch).
+
+If either file would be missing, warn: "`<target>` does not contain `fixes/<branch-slug>/`. After switching, this fix file and the README would not exist." and ask (header `Missing`):
+
+- `Choose another ref (Recommended)` — back to 3.2 (or 3.3 if the existing branch was chosen).
+- `Stop here` — **stop** without switching.
+
+### 3.5 Working-tree check
+
+Run `git status --porcelain` before switching and split the changed paths:
+
+1. **Outside `fixes/`** → show them and ask (header `Changes`): "There are uncommitted changes in the working tree. Switching branches would carry them over. What do you want to do?"
+   - `Commit or stash them yourself, then relaunch (Recommended)` → **stop** without switching.
+   - `Continue anyway — the changes travel to the new branch`.
+
+   Never stash or commit for the user.
+2. **Inside `fixes/`** → show them and warn: "These fix files have uncommitted changes. If they travel to the new branch, the fixes progress splits across branches." Ask (header `Fixes`):
+   - `Commit them yourself and relaunch (Recommended)` → **stop** without switching.
+   - `Continue (they travel to the new branch)`.
+
+If both kinds exist, ask 1 first, then 2.
+
+### 3.6 Switch
+
+Run `git switch -c "<name>" "<from-ref>"` (or `git switch "<name>"` for an existing branch). If git fails, show its error and **stop**. Confirm with `git branch --show-current` and show:
+
+```
+Active branch: <name>
+```
+
+`<impl-branch>` = `<name>`.
+
+---
+
+## Step 4 — Drift
+
+1. Collect the file paths named in the fix: the `Location` header and every path in backticks in "Implementation plan". Validate each ("Security rules"); a path that fails is left out and its step is handled by the ambiguity flow (Step 5.4).
+2. If the fix's `Reviewed HEAD` failed validation or does not exist (`git cat-file -e "<reviewedHead>^{commit}"`), say "Cannot check drift: `Reviewed HEAD` `<value>` is not available." and go to Step 5.
+3. Run `git diff --name-only "<reviewedHead>..HEAD" -- "<path1>" "<path2>" …`.
+4. Empty output → go to Step 5 silently.
+5. Otherwise warn: "These files changed since the review (`<reviewedHead>` → `<short HEAD>`): <files>. The plan may not match the code." and ask (header `Drift`):
+   - `Continue and adapt per step (Recommended)` — go to Step 5; any mismatch found in a step goes through the ambiguity flow.
+   - `Stop here` — **stop**. Nothing changed except the branch switch, if any.
